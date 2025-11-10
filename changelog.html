@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Changelog • Dumblo</title>
+    <link rel="preconnect" href="https://api.github.com">
+    <link rel="stylesheet" href="styles.css?v=20251110-2">
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="menu container">
+        <a href="index.html" class="brand">Dumblo</a>
+        <div class="menu-links">
+          <a href="index.html#roadmap" class="menu-link">Roadmap</a>
+          <a href="comandos.html" class="menu-link">Comandos</a>
+          <a href="termos.html" class="menu-link">Termos</a>
+          <a href="changelog.html" class="menu-link active">Changelog</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="changelog-root" class="section" data-repo="dumblo-site" data-owner="vitordogmm" data-season-default="1" data-season1-start="">
+      <div class="container">
+        <div class="changelog-head sr">
+          <div class="changelog-title">
+            <h1 class="title-lg">Changelog</h1>
+            <p class="subtitle">Commits recentes do GitHub com filtros por temporada.</p>
+          </div>
+          <div class="changelog-actions">
+            <div class="search-bar">
+              <span class="search-icon">🔎</span>
+              <input id="cl-search" type="search" placeholder="Filtrar por mensagem de commit..." autocomplete="off" />
+            </div>
+            <div class="cmd-filters">
+              <button class="chip active" data-season="all">Todos</button>
+              <button class="chip" data-season="1">Temporada 1</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="commit-meta" class="sr"><span id="commit-count">–</span></div>
+
+        <section id="commit-list" class="commit-list sr"></section>
+
+        <div id="commit-empty" class="commit-empty sr" hidden>
+          <p>Nenhum commit encontrado para o filtro atual.</p>
+        </div>
+      </div>
+    </main>
+
+    <script src="scripts.js?v=20251110"></script>
+    <script>
+      // Inicializa a página de changelog após carregar scripts
+      document.addEventListener('DOMContentLoaded', function(){
+        if (typeof window.setupChangelog === 'function') {
+          window.setupChangelog();
+        }
+      });
+    </script>
+  </body>
+</html>

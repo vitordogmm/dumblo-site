@@ -318,6 +318,10 @@ document.addEventListener('DOMContentLoaded',()=>{
 
   // Inicializa UI de comandos (busca + categorias)
   initCommandsPage();
+  // Inicializa a página de changelog, se presente
+  if(typeof window !== 'undefined' && typeof window.setupChangelog === 'function'){
+    try{ window.setupChangelog(); }catch(e){ console.warn('setupChangelog falhou:', e); }
+  }
 });
 
 // Redundância: também processa o retorno OAuth no evento load, caso algo impeça DOMContentLoaded
@@ -331,3 +335,175 @@ if (typeof window !== 'undefined') {
     }
   });
 }
+
+// --- Changelog page (GitHub commits) ---
+(function(){
+  function shortSha(sha){ return (sha||'').slice(0,7); }
+  function formatDate(iso){ try{ const d=new Date(iso); return d.toLocaleString('pt-BR',{ dateStyle:'medium', timeStyle:'short' }); }catch{ return iso; } }
+  function firstLine(msg){ return String(msg||'').split(/\r?\n/)[0]; }
+
+  async function fetchCommits({ owner, repo, since, until, perPage = 50 }){
+    const qs = new URLSearchParams();
+    if(perPage) qs.set('per_page', String(perPage));
+    if(since) qs.set('since', since);
+    if(until) qs.set('until', until);
+    const path = `/.netlify/functions/github-commits?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}&${qs.toString()}`;
+    try{
+      const r = await fetch(path);
+      if(r.ok){ return await r.json(); }
+      console.warn('github-commits falhou, tentando API direta', r.status);
+    }catch(err){ console.warn('github-commits erro', err); }
+    // fallback: API direta (apenas para repositórios públicos)
+    try{
+      const direct = `https://api.github.com/repos/${owner}/${repo}/commits?${qs.toString()}`;
+      const r = await fetch(direct, { headers: { 'User-Agent':'DumbloSite/1.0' } });
+      if(r.ok){ return await r.json(); }
+      const txt = await r.text();
+      console.warn('GitHub API direta falhou', r.status, txt);
+    }catch(err){ console.warn('GitHub direta erro', err); }
+    return [];
+  }
+
+  function renderCommits(commits){
+    const root = document.getElementById('commit-list');
+    const count = document.getElementById('commit-count');
+    const empty = document.getElementById('commit-empty');
+    if(!root) return;
+    const safe = Array.isArray(commits) ? commits : [];
+    if(count) count.textContent = `Mostrando ${safe.length} commit(s)`;
+    if(empty) empty.hidden = safe.length > 0;
+    root.innerHTML = safe.map(c => {
+      const msg = firstLine(c.commit && c.commit.message);
+      const author = (c.commit && c.commit.author && c.commit.author.name) || (c.author && c.author.login) || '—';
+      const date = (c.commit && c.commit.author && c.commit.author.date) || null;
+      const url = c.html_url || (c.url ? c.url.replace('api.github.com/repos','github.com') : '#');
+      return `
+        <article class="commit-card">
+          <div class="commit-top">
+            <div class="commit-icon" aria-hidden="true">📝</div>
+            <div class="commit-msg">${escapeHtml(msg || 'Commit')}</div>
+          </div>
+          <div class="commit-meta">
+            <span>${escapeHtml(author)}</span>
+            <span>•</span>
+            <span>${date ? escapeHtml(formatDate(date)) : ''}</span>
+            <span>•</span>
+            <span>#${escapeHtml(shortSha(c.sha || ''))}</span>
+          </div>
+          <a class="commit-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">Ver commit ↗</a>
+        </article>
+      `;
+    }).join('');
+  }
+
+  function filterByText(commits, q){
+    const words = String(q || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if(!words.length) return commits;
+    return commits.filter(c => {
+      const msg = firstLine(c.commit && c.commit.message).toLowerCase();
+      return words.every(w => msg.includes(w));
+    });
+  }
+
+  function parseStartFromQS(){
+    try{
+      const qs = new URLSearchParams(window.location.search);
+      const s = qs.get('start');
+      if(!s) return null;
+      const d = new Date(s);
+      return isNaN(d.getTime()) ? null : d.toISOString();
+    }catch{ return null; }
+  }
+
+  function seasonRange(season){
+    // Temporada aberta: até "agora"; início pode vir do HTML (data-season1-start) ou da URL (?start=YYYY-MM-DD)
+    const now = new Date();
+    if(String(season) === '1'){
+      const root = document.getElementById('changelog-root');
+      const startAttr = root?.dataset?.season1Start || '';
+      const startQS = parseStartFromQS();
+      let sinceIso = null;
+      if(startQS){ sinceIso = startQS; }
+      else if(startAttr){
+        const d = new Date(startAttr);
+        sinceIso = isNaN(d.getTime()) ? null : d.toISOString();
+      }
+      // Fallback: últimos 90 dias caso não haja início definido
+      if(!sinceIso){
+        const since = new Date(now.getTime() - 90*24*60*60*1000);
+        sinceIso = since.toISOString();
+      }
+      return { since: sinceIso, until: now.toISOString() };
+    }
+    return { since: undefined, until: undefined };
+  }
+
+  async function loadAndRender({ owner, repo, season, q }){
+    const range = seasonRange(season);
+    const commits = await fetchCommits({ owner, repo, since: range.since, until: range.until, perPage: 50 });
+    const filtered = filterByText(commits, q);
+    renderCommits(filtered);
+  }
+
+  function setupChips(onChange){
+    const container = document.querySelector('.cmd-filters');
+    if(!container) return;
+    const chips = Array.from(container.querySelectorAll('.chip'));
+    chips.forEach(chip => chip.addEventListener('click', () => {
+      chips.forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      const season = chip.getAttribute('data-season');
+      onChange(season);
+    }));
+  }
+
+  function parseRepoParam(){
+    const qs = new URLSearchParams(window.location.search);
+    const repoParam = qs.get('repo'); // owner/name
+    if(repoParam && repoParam.includes('/')){
+      const [owner, repo] = repoParam.split('/');
+      return { owner, repo };
+    }
+    const root = document.getElementById('changelog-root');
+    const owner = root?.dataset.owner || '';
+    const repo = root?.dataset.repo || '';
+    return { owner, repo };
+  }
+
+  function parseSeason(){
+    const qs = new URLSearchParams(window.location.search);
+    return qs.get('season') || qs.get('t') || null;
+  }
+
+  function setupSearch(onChange){
+    const input = document.getElementById('cl-search');
+    if(!input) return;
+    input.addEventListener('input', ()=> onChange(input.value));
+  }
+
+  window.setupChangelog = function(){
+    const root = document.getElementById('changelog-root');
+    if(!root) return; // não está na página de changelog
+
+    const { owner, repo } = parseRepoParam();
+    if(!owner || !repo){
+      showToast('Configure o repositório via ?repo=owner/nome ou data-owner/data-repo.', 'info', { duration: 6000 });
+    }
+
+    let currentSeason = parseSeason() || (root.dataset.seasonDefault || 'all');
+    let currentQuery = '';
+
+    // ativa chip conforme season
+    const chips = Array.from(document.querySelectorAll('.cmd-filters .chip'));
+    chips.forEach(c => c.classList.remove('active'));
+    const targetChip = chips.find(c => c.getAttribute('data-season') === String(currentSeason)) || chips[0];
+    if(targetChip){ targetChip.classList.add('active'); }
+
+    const reload = ()=> loadAndRender({ owner, repo, season: currentSeason, q: currentQuery });
+
+    setupChips((season)=>{ currentSeason = season; reload(); });
+    setupSearch((q)=>{ currentQuery = q; reload(); });
+
+    reload();
+  };
+})();
