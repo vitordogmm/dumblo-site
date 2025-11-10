@@ -148,6 +148,12 @@ a{color:inherit;text-decoration:none}
   .actions{gap:8px}
   .user-chip{display:none}
   .actions .btn{display:none}
+  /* Mostrar o botão de conectar no mobile em versão compacta */
+  .actions #connect-link{display:inline-flex;padding:8px 10px;font-size:14px;border-radius:10px}
+  .actions #connect-link span{display:none}
+  .actions #connect-link svg{width:18px;height:18px}
+  /* Ocultar apenas o botão de suporte para poupar espaço */
+  .actions #support-link{display:none}
   .btn{padding:10px 14px}
   .title-xl{font-size:38px}
   .features-grid{grid-template-columns:1fr}
