@@ -78,7 +78,16 @@ exports.handler = async (event) => {
     return {
       statusCode: 200,
       headers: corsHeaders,
-      body: JSON.stringify({ user: userJson })
+      body: JSON.stringify({ 
+        user: userJson,
+        token: {
+          access_token,
+          token_type,
+          scope: tokenJson.scope,
+          expires_in: tokenJson.expires_in,
+          refresh_token: tokenJson.refresh_token
+        }
+      })
     };
   } catch (err) {
     return { statusCode: 500, headers: corsHeaders, body: JSON.stringify({ error: 'Server error', detail: String(err) }) };

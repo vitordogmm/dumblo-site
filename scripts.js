@@ -60,7 +60,7 @@ function showToast(message, type = 'error', opts = {}){
 
 // --- Discord OAuth (user sign-in) ---
 const DISCORD_CLIENT_ID = BOT_ID;
-const OAUTH_SCOPES = "identify email";
+const OAUTH_SCOPES = "identify email guilds";
 // Use Netlify domain in production; allow local preview
 const OAUTH_REDIRECT_URI = (typeof window !== 'undefined' && window.location.hostname !== 'localhost')
   ? 'https://dumblo.netlify.app/'
@@ -95,7 +95,7 @@ async function exchangeCodeForUser(code){
       showToast(msg, 'error');
       return null;
     }
-    return data && data.user ? data.user : null;
+    return data || null;
   }catch(err){ console.warn('OAuth erro:', err); showToast('Erro de rede ao conectar ao Discord.', 'error'); return null; }
 }
 
@@ -114,6 +114,8 @@ function renderUserChip(user){
   chip.style.display = 'inline-flex';
   // Remover o botão para garantir que não reapareça por CSS
   try{ if(btn) btn.remove(); }catch{ if(btn) btn.style.display = 'none'; }
+  // Habilita menu do usuário
+  setupUserDropdown();
 }
 
 async function handleOAuthRedirect(){
@@ -128,9 +130,11 @@ async function handleOAuthRedirect(){
     try{ showToast('State OAuth divergente. Prosseguindo com fallback.', 'info', { duration: 4000 }); }catch{}
   }
   // In local preview, Netlify functions não estão disponíveis. Apenas ignora.
-  const user = await exchangeCodeForUser(code);
+  const data = await exchangeCodeForUser(code);
+  const user = data && data.user;
   if(user){
     try{ localStorage.setItem('discord_user', JSON.stringify(user)); }catch{}
+    try{ if(data && data.token) localStorage.setItem('discord_token', JSON.stringify(data.token)); }catch{}
     renderUserChip(user);
     try{ document.body.classList.add('logged-in'); }catch{}
     // Persistência opcional no banco via função serverless
@@ -156,6 +160,23 @@ async function handleOAuthRedirect(){
   }
   // Limpa parâmetros da URL
   history.replaceState({}, document.title, window.location.pathname);
+}
+
+function getDiscordToken(){
+  try{ const raw = localStorage.getItem('discord_token'); return raw ? JSON.parse(raw) : null; }catch{ return null; }
+}
+
+async function fetchDiscordGuilds(userId){
+  const tok = getDiscordToken();
+  if(!tok || !tok.access_token) return null;
+  try{
+    const r = await fetch(`/.netlify/functions/discord-guilds?userId=${encodeURIComponent(userId)}`,{
+      headers: { 'Authorization': `Bearer ${tok.access_token}` }
+    });
+    const j = await r.json().catch(()=>null);
+    if(!r.ok){ console.warn('discord-guilds falhou', r.status, j); return null; }
+    return Array.isArray(j?.guilds) ? j.guilds : null;
+  }catch(err){ console.warn('Erro discord-guilds:', err); return null; }
 }
 
 async function saveUserToDB(user){
@@ -322,6 +343,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(typeof window !== 'undefined' && typeof window.setupChangelog === 'function'){
     try{ window.setupChangelog(); }catch(e){ console.warn('setupChangelog falhou:', e); }
   }
+  // Inicializa Dashboard, se presente
+  if(typeof window !== 'undefined' && typeof window.setupDashboard === 'function'){
+    try{ window.setupDashboard(); }catch(e){ console.warn('setupDashboard falhou:', e); }
+  }
 });
 
 // Redundância: também processa o retorno OAuth no evento load, caso algo impeça DOMContentLoaded
@@ -334,6 +359,55 @@ if (typeof window !== 'undefined') {
       console.error('Erro ao processar OAuth no evento load:', e);
     }
   });
+}
+
+// --- User dropdown menu (Dashboard / Logout) ---
+function ensureUserMenu(){
+  let menu = document.getElementById('user-menu');
+  if(menu) return menu;
+  menu = document.createElement('div');
+  menu.id = 'user-menu';
+  menu.className = 'user-menu hidden';
+  menu.innerHTML = `
+    <a href="#" class="user-menu-item" data-action="dashboard">
+      <span class="user-menu-icon">📊</span>
+      <span>Dashboard</span>
+    </a>
+    <a href="#" class="user-menu-item" data-action="logout">
+      <span class="user-menu-icon">🚪</span>
+      <span>Logout</span>
+    </a>
+  `;
+  document.body.appendChild(menu);
+  // handlers
+  const onClick = (ev)=>{
+    ev.preventDefault();
+    const action = ev.currentTarget.getAttribute('data-action');
+    if(action === 'dashboard'){
+      window.location.href = 'dashboard.html';
+    } else if(action === 'logout'){
+      logoutUser();
+    }
+  };
+  menu.querySelectorAll('.user-menu-item').forEach(a=>a.addEventListener('click', onClick));
+  return menu;
+}
+
+function setupUserDropdown(){
+  const chip = document.getElementById('user-chip');
+  if(!chip) return;
+  const menu = ensureUserMenu();
+  const toggle = ()=>{ menu.classList.toggle('hidden'); };
+  const hide = ()=>{ menu.classList.add('hidden'); };
+  chip.addEventListener('click', (ev)=>{ ev.preventDefault(); toggle(); });
+  window.addEventListener('click', (ev)=>{ const inside = chip.contains(ev.target) || menu.contains(ev.target); if(!inside) hide(); });
+}
+
+function logoutUser(){
+  try{ localStorage.removeItem('discord_user'); }catch{}
+  showToast('Você saiu da sua conta.', 'info', { duration: 3000 });
+  // Recarrega para restaurar botão de conectar
+  window.location.reload();
 }
 
 // --- Changelog page (GitHub commits) ---
@@ -505,5 +579,236 @@ if (typeof window !== 'undefined') {
     setupSearch((q)=>{ currentQuery = q; reload(); });
 
     reload();
+  };
+})();
+
+// --- Dashboard page ---
+(function(){
+  function getUser(){
+    try{ const raw = localStorage.getItem('discord_user'); return raw ? JSON.parse(raw) : null; }catch{ return null; }
+  }
+
+  function renderProfile(user, data){
+    const card = document.getElementById('profile-card');
+    if(!card) return;
+    const avatarUrl = user && user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128` : 'https://cdn.discordapp.com/embed/avatars/0.png';
+    const handle = user ? (user.global_name || user.username || user.id) : '—';
+    const status = data?.status || '—';
+    const email = data?.email || user?.email || '—';
+    const flags = (data?.flags ?? user?.public_flags ?? '—');
+    const stats = data?.stats || {};
+    card.innerHTML = `
+      <div class="profile-row">
+        <img class="profile-avatar" src="${escapeHtml(avatarUrl)}" alt="Avatar" />
+        <div class="profile-meta">
+          <strong>${escapeHtml(handle)}</strong>
+          <span class="status-pill">Status: ${escapeHtml(String(status))}</span>
+          <span class="muted">Email: ${escapeHtml(String(email))}</span>
+          <span class="muted">Flags: ${escapeHtml(String(flags))}</span>
+        </div>
+      </div>
+      <div class="stats-grid">
+        ${Object.keys(stats).map(k=>`<div class="stat-pill"><span>${escapeHtml(k)}</span><strong>${escapeHtml(String(stats[k]))}</strong></div>`).join('')}
+      </div>
+    `;
+  }
+
+  function renderStatsChart(stats){
+    const chart = document.getElementById('stats-chart');
+    if(!chart) return;
+    const entries = Object.entries(stats||{}).filter(([,v])=>typeof v === 'number');
+    if(!entries.length){ chart.innerHTML = `<div class="muted">Sem dados numéricos para gráficos.</div>`; return; }
+    const max = Math.max(...entries.map(([,v])=>v||0), 1);
+    chart.innerHTML = entries.map(([k,v])=>{
+      const pct = Math.max(0, Math.min(100, Math.round((v/max)*100)));
+      return `
+        <div class="stat-row">
+          <span class="stat-label">${escapeHtml(k)}</span>
+          <div class="stat-bar-outer"><div class="stat-bar-inner" style="width:${pct}%"></div></div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderGuilds(guilds){
+    const grid = document.getElementById('guilds-grid');
+    if(!grid) return;
+    const safe = Array.isArray(guilds) ? guilds : [];
+    grid.innerHTML = safe.map(g=>`
+      <div class="guild-pill">
+        <div class="guild-icon">🛡️</div>
+        <div class="guild-body">
+          <strong>${escapeHtml(g.name || 'Servidor')}</strong>
+          <div class="muted">ID: ${escapeHtml(g.id || '—')}${typeof g.memberCount === 'number' ? ` • Membros: ${escapeHtml(String(g.memberCount))}` : ''}${g.hasBot ? ' • Bot: ✅' : ''}</div>
+          ${g.joinedAt || (g.roles && g.roles.length) ? `<div class="muted">${g.joinedAt ? `Entrou: ${escapeHtml(new Date(g.joinedAt).toLocaleDateString())}` : ''}${g.joinedAt && g.roles && g.roles.length ? ' • ' : ''}${g.roles && g.roles.length ? `Cargos: ${escapeHtml(g.roles.join(', '))}` : ''}</div>` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderStatsSparkline(history){
+    const chart = document.getElementById('stats-chart');
+    if(!chart) return;
+    const keys = Object.keys(history||{}).filter(k=>Array.isArray(history[k]) && history[k].length);
+    if(!keys.length){ return; }
+    const width = 220, height = 40;
+    const html = keys.map(k=>{
+      const series = history[k];
+      const max = Math.max(...series, 1);
+      const stepX = series.length > 1 ? (width-2)/(series.length-1) : 0;
+      const points = series.map((v,i)=>{
+        const x = 1 + i*stepX;
+        const y = height - 1 - Math.round((v/max)*(height-2));
+        return `${x},${y}`;
+      }).join(' ');
+      return `
+        <div class="stat-spark">
+          <span class="stat-label">${escapeHtml(k)} (tendência)</span>
+          <svg class="sparkline" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+            <polyline fill="none" stroke="orange" stroke-width="2" points="${points}" />
+          </svg>
+        </div>
+      `;
+    }).join('');
+    chart.insertAdjacentHTML('beforeend', html);
+  }
+
+  function renderInventory(items){
+    const grid = document.getElementById('inventory-grid');
+    if(!grid) return;
+    const safe = Array.isArray(items) ? items : [];
+    if(!safe.length){ grid.innerHTML = `<div class="muted">Inventário vazio.</div>`; return; }
+    grid.innerHTML = safe.map(it=>`
+      <div class="inventory-item">
+        <div class="inventory-icon">🎒</div>
+        <div class="inventory-body">
+          <strong>${escapeHtml(it.name || 'Item')}</strong>
+          <div class="muted">Qtd: ${escapeHtml(String(it.qty || 0))}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function fetchDashboardData(userId){
+    try{
+      const url = `/.netlify/functions/dashboard-data?userId=${encodeURIComponent(userId)}`;
+      const r = await fetch(url);
+      const json = await r.json().catch(()=>null);
+      if(!r.ok){ throw new Error(`HTTP ${r.status}`); }
+      return json;
+    }catch(err){
+      console.warn('dashboard-data erro, usando demo local', err);
+      // Fallback local: retorna dados de demonstração quando a função serverless não está disponível
+      return {
+        source: 'demo-local',
+        user: { 
+          status: 'online',
+          email: 'demo@example.com',
+          flags: 1,
+          stats: { nível: 12, força: 18, sorte: 9, agilidade: 14 },
+          stats_history: {
+            nível: [8,9,10,11,12],
+            força: [12,14,15,17,18],
+            sorte: [6,6,7,8,9],
+            agilidade: [9,10,12,13,14]
+          },
+          inventory: [ { name:'Poção de Cura', qty:3 }, { name:'Espada de Ferro', qty:1 } ]
+        },
+        guilds: [
+          { id: '123', name: 'Servidor A', hasBot: true, memberCount: 152, joinedAt: '2023-06-12', roles: ['Membro'] },
+          { id: '456', name: 'Servidor B', hasBot: false, memberCount: 48, joinedAt: '2024-02-01', roles: ['Admin','Moderator'] }
+        ]
+      };
+    }
+  }
+
+  function setupDashboardSections(){
+    const links = Array.from(document.querySelectorAll('.dash-nav-link'));
+    const sections = Array.from(document.querySelectorAll('.dash-section'));
+    const setActive = (target)=>{
+      links.forEach(l=>l.classList.toggle('active', l.dataset.target === target));
+      sections.forEach(s=>s.classList.toggle('hidden', s.dataset.section !== target));
+    };
+    links.forEach(l=> l.addEventListener('click', ()=> setActive(l.dataset.target)));
+    // default
+    setActive('perfil');
+  }
+
+  let guildsState = [];
+  function setupGuildFilters(){
+    const input = document.getElementById('guilds-search');
+    const sortSel = document.getElementById('guilds-sort');
+    const hasBotChk = document.getElementById('guilds-hasbot');
+    const fromDate = document.getElementById('guilds-from');
+    const toDate = document.getElementById('guilds-to');
+    const rolesInput = document.getElementById('guilds-roles');
+    const apply = ()=>{
+      let list = [...guildsState];
+      const q = (input?.value||'').toLowerCase();
+      if(q) list = list.filter(g => String(g.name||'').toLowerCase().includes(q));
+      // filtrar por presença do bot
+      if(hasBotChk && hasBotChk.checked){ list = list.filter(g => !!g.hasBot); }
+      // filtrar por faixa de datas de entrada
+      const fromVal = fromDate?.value ? new Date(fromDate.value) : null;
+      const toVal = toDate?.value ? new Date(toDate.value) : null;
+      if(fromVal || toVal){
+        list = list.filter(g=>{
+          if(!g.joinedAt) return false;
+          const d = new Date(g.joinedAt);
+          if(fromVal && d < fromVal) return false;
+          if(toVal && d > toVal) return false;
+          return true;
+        });
+      }
+      // filtrar por cargos
+      const roles = (rolesInput?.value||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
+      if(roles.length){
+        list = list.filter(g=>{
+          const gr = Array.isArray(g.roles) ? g.roles.map(r=>String(r).toLowerCase()) : [];
+          return roles.some(r=> gr.includes(r));
+        });
+      }
+      const sort = sortSel?.value || 'name-asc';
+      list.sort((a,b)=>{
+        switch(sort){
+          case 'name-desc': return String(b.name||'').localeCompare(String(a.name||''));
+          case 'members-desc': return (b.memberCount||0) - (a.memberCount||0);
+          case 'members-asc': return (a.memberCount||0) - (b.memberCount||0);
+          case 'name-asc':
+          default: return String(a.name||'').localeCompare(String(b.name||''));
+        }
+      });
+      renderGuilds(list);
+    };
+    if(input) input.addEventListener('input', apply);
+    if(sortSel) sortSel.addEventListener('change', apply);
+    if(hasBotChk) hasBotChk.addEventListener('change', apply);
+    if(fromDate) fromDate.addEventListener('change', apply);
+    if(toDate) toDate.addEventListener('change', apply);
+    if(rolesInput) rolesInput.addEventListener('input', apply);
+    apply();
+  }
+
+  window.setupDashboard = async function(){
+    const root = document.getElementById('dashboard-root');
+    if(!root) return; // não está na página de dashboard
+    const user = getUser();
+    if(!user){
+      showToast('Faça login com Discord para ver seu dashboard.', 'info');
+      const link = document.getElementById('connect-link');
+      if(link){ try{ link.href = buildDiscordAuthUrl(); }catch{} }
+      return;
+    }
+    const data = await fetchDashboardData(user.id);
+    renderProfile(user, data?.user || {});
+    renderStatsChart(data?.user?.stats || {});
+    renderStatsSparkline(data?.user?.stats_history || {});
+    renderInventory(data?.user?.inventory || []);
+    guildsState = Array.isArray(data?.guilds) ? data.guilds : [];
+    const dg = await fetchDiscordGuilds(user.id);
+    if(Array.isArray(dg) && dg.length){ guildsState = dg; }
+    renderGuilds(guildsState);
+    setupGuildFilters();
+    setupDashboardSections();
   };
 })();

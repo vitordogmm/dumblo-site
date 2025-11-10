@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dumblo — Dashboard</title>
+    <meta name="description" content="Seu painel: perfil, servidores e estatísticas." />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="icon" href="dumblo-logo.png" type="image/png" />
+    <link rel="stylesheet" href="styles.css?v=20251110-2" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container nav">
+        <a class="brand" href="./" aria-label="Dumblo — página inicial">
+          <img src="dumblo-logo.png" alt="Logo do Dumblo" class="brand-logo-img" width="32" height="32" />
+          <span class="brand-name">Dumblo</span>
+        </a>
+        <nav class="menu" aria-label="Principal">
+          <a href="index.html#hero" class="menu-link">Início</a>
+          <a href="index.html#about" class="menu-link">Sobre</a>
+          <a href="comandos.html" class="menu-link">Comandos</a>
+          <a href="index.html#faq" class="menu-link">FAQ</a>
+          <a href="index.html#roadmap" class="menu-link">Roadmap</a>
+          <a href="changelog.html" class="menu-link">Changelog</a>
+          <a href="termos.html" class="menu-link">Termos</a>
+        </nav>
+        <div class="actions">
+          <a id="support-link" class="btn btn-secondary" target="_blank" rel="noopener">Suporte</a>
+          <a id="connect-link" class="btn btn-outline" aria-label="Conectar ao Discord" href="#" rel="noopener">
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block">
+              <path d="M20.317 4.369A19.791 19.791 0 0 0 16.558 3c-.2.364-.438.85-.602 1.236a18.51 18.51 0 0 0-3.954 0A8.258 8.258 0 0 0 11.4 3c-.211.385-.45.872-.602 1.236-1.406.258-2.77.704-4.116 1.333-.147.107-.28.214-.41.321-2.61 3.78-3.32 7.46-2.964 11.079a19.991 19.991 0 0 0 5.07 2.601c.406-.558.77-1.154 1.08-1.789-.595-.224-1.163-.49-1.704-.797.142-.103.28-.21.41-.321 3.218 1.505 6.696 1.505 9.882 0 .136.111.274.218.41.321-.54.307-1.106.573-1.704.797.31.635.674 1.231 1.084 1.789a19.94 19.94 0 0 0 5.066-2.601c.413-4.299-.733-7.949-2.957-11.079a15.36 15.36 0 0 0-.414-.321ZM9.471 13.61c-.955 0-1.733-.87-1.733-1.94s.766-1.947 1.733-1.947c.967 0 1.748.878 1.733 1.947 0 1.07-.766 1.94-1.733 1.94Zm5.066 0c-.955 0-1.733-.87-1.733-1.94s.766-1.947 1.733-1.947c.967 0 1.748.878 1.733 1.947 0 1.07-.766 1.94-1.733 1.94Z"/>
+            </svg>
+            <span>Conectar ao Discord</span>
+          </a>
+          <div id="user-chip" class="user-chip" style="display:none"></div>
+          <button class="hamburger" aria-label="Abrir menu">
+            <span></span><span></span><span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main id="dashboard-root" class="section">
+      <div class="container">
+        <div class="dashboard-head sr">
+          <div>
+            <h1 class="title-lg">Dashboard</h1>
+            <p class="subtitle">Seu perfil, inventário, servidores em comum e estatísticas.</p>
+          </div>
+        </div>
+        <div class="dash-layout sr">
+          <aside class="dash-sidebar" aria-label="Seções do painel">
+            <button class="dash-nav-link active" data-target="perfil">Perfil</button>
+            <button class="dash-nav-link" data-target="inventario">Inventário</button>
+            <button class="dash-nav-link" data-target="servidores">Servidores</button>
+          </aside>
+          <div class="dash-content">
+            <section class="dash-section" data-section="perfil">
+              <div id="profile-card" class="dash-card">
+                <h3>Perfil</h3>
+                <div class="muted">Carregando perfil...</div>
+              </div>
+              <div class="dash-card" id="stats-card">
+                <h3>Estatísticas</h3>
+                <div id="stats-chart" class="stats-chart"></div>
+              </div>
+            </section>
+            <section class="dash-section hidden" data-section="inventario">
+              <div class="dash-card" id="inventory-card">
+                <h3>Inventário</h3>
+                <div id="inventory-grid" class="inventory-grid"></div>
+              </div>
+            </section>
+            <section class="dash-section hidden" data-section="servidores">
+              <div class="dash-card" id="guilds-card">
+                <div class="section-head">
+                  <h3>Servidores em comum</h3>
+                  <div class="guilds-toolbar">
+                    <input id="guilds-search" type="text" placeholder="Buscar por nome" aria-label="Buscar servidor" />
+                    <select id="guilds-sort" aria-label="Ordenar">
+                      <option value="name-asc">Nome A-Z</option>
+                      <option value="name-desc">Nome Z-A</option>
+                      <option value="members-desc">Membros (maior primeiro)</option>
+                      <option value="members-asc">Membros (menor primeiro)</option>
+                    </select>
+                    <label class="form-check" title="Somente servidores com o bot">
+                      <input type="checkbox" id="guilds-hasbot" checked />
+                      <span>Com bot</span>
+                    </label>
+                    <input id="guilds-from" type="date" aria-label="Entrada após" />
+                    <input id="guilds-to" type="date" aria-label="Entrada antes" />
+                    <input id="guilds-roles" type="text" placeholder="Cargos (vírgulas)" aria-label="Filtrar por cargos" />
+                  </div>
+                </div>
+                <div id="guilds-grid" class="guilds-grid"></div>
+              </div>
+              </section>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script src="scripts.js?v=20251110"></script>
+  </body>
+</html>
