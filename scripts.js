@@ -5,6 +5,76 @@ function inviteUrl(id){
   return `https://discord.com/oauth2/authorize?client_id=${id}&permissions=2147576832&scope=bot%20applications.commands`;
 }
 
+// --- Discord OAuth (user sign-in) ---
+const DISCORD_CLIENT_ID = BOT_ID;
+const OAUTH_SCOPES = "identify openid email guilds";
+// Use Netlify domain in production; allow local preview
+const OAUTH_REDIRECT_URI = (typeof window !== 'undefined' && window.location.hostname !== 'localhost')
+  ? 'https://dumblo.netlify.app/'
+  : 'http://localhost:8000/';
+
+function buildDiscordAuthUrl(){
+  const state = Math.random().toString(36).slice(2);
+  sessionStorage.setItem('oauth_state', state);
+  const params = new URLSearchParams({
+    client_id: DISCORD_CLIENT_ID,
+    response_type: 'code',
+    redirect_uri: OAUTH_REDIRECT_URI,
+    scope: OAUTH_SCOPES,
+    state
+  });
+  return `https://discord.com/oauth2/authorize?${params.toString()}`;
+}
+
+async function exchangeCodeForUser(code){
+  try{
+    const res = await fetch('/.netlify/functions/discord-token',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ code, redirect_uri: OAUTH_REDIRECT_URI })
+    });
+    if(!res.ok) throw new Error('Falha ao trocar código por token');
+    const data = await res.json();
+    return data.user || null;
+  }catch(err){ console.warn('OAuth erro:', err); return null; }
+}
+
+function renderUserChip(user){
+  const chip = document.getElementById('user-chip');
+  const btn = document.getElementById('connect-link');
+  if(!chip) return;
+  const avatarUrl = user && user.avatar
+    ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`
+    : 'https://cdn.discordapp.com/embed/avatars/0.png';
+  chip.innerHTML = `<img src="${avatarUrl}" alt="Avatar" class="user-avatar" width="24" height="24" />
+    <span class="user-name">${user ? (user.global_name || user.username) : 'Conectado'}</span>`;
+  chip.style.display = 'inline-flex';
+  if(btn) btn.style.display = 'none';
+}
+
+async function handleOAuthRedirect(){
+  const qs = new URLSearchParams(window.location.search);
+  const code = qs.get('code');
+  const state = qs.get('state');
+  if(!code) return;
+  const expect = sessionStorage.getItem('oauth_state');
+  if(expect && state !== expect){ console.warn('State inválido'); return; }
+  // In local preview, Netlify functions não estão disponíveis. Apenas ignora.
+  const user = await exchangeCodeForUser(code);
+  if(user){ try{ localStorage.setItem('discord_user', JSON.stringify(user)); }catch{} renderUserChip(user); }
+  // Limpa parâmetros da URL
+  history.replaceState({}, document.title, window.location.pathname);
+}
+
+function restoreDiscordUser(){
+  try{
+    const raw = localStorage.getItem('discord_user');
+    if(!raw) return;
+    const user = JSON.parse(raw);
+    if(user) renderUserChip(user);
+  }catch{}
+}
+
 function setHref(id){
   const addIds = ["invite-link","invite-link-hero","invite-link-footer","invite-link-commands"]; 
   const supIds = ["support-link","support-link-hero","support-link-footer","support-link-commands"]; 
@@ -59,4 +129,15 @@ document.addEventListener('DOMContentLoaded',()=>{
   setupReveal();
   setupFaq();
   setupMobileNav();
+  // Botão Conectar Discord
+  const connect = document.getElementById('connect-link');
+  if(connect){
+    connect.addEventListener('click',(e)=>{
+      e.preventDefault();
+      window.location.href = buildDiscordAuthUrl();
+    });
+  }
+  // Restaurar sessão e processar retorno do OAuth
+  restoreDiscordUser();
+  if(typeof window !== 'undefined') handleOAuthRedirect();
 });
