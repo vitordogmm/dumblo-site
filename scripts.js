@@ -132,6 +132,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Botão Conectar Discord
   const connect = document.getElementById('connect-link');
   if(connect){
+    // Define href para fallback caso o listener não dispare
+    try{ connect.href = buildDiscordAuthUrl(); }catch{}
     connect.addEventListener('click',(e)=>{
       e.preventDefault();
       window.location.href = buildDiscordAuthUrl();
