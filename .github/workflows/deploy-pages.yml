@@ -1,8 +1,8 @@
-name: Deploy static site to GitHub Pages
+name: Disabled GitHub Pages deploy (using Netlify)
 
 on:
   push:
-    branches: ["main"]
+    branches: ["__disabled__"]
   workflow_dispatch:
 
 permissions:
@@ -16,6 +16,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: false # disabled: site is deployed via Netlify
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

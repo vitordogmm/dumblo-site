@@ -59,7 +59,8 @@ async function handleOAuthRedirect(){
   const state = qs.get('state');
   if(!code) return;
   const expect = sessionStorage.getItem('oauth_state');
-  if(expect && state !== expect){ console.warn('State inválido'); return; }
+  // Se não houver 'state' na URL, siga adiante (fallback)
+  if(expect && state && state !== expect){ console.warn('State inválido'); return; }
   // In local preview, Netlify functions não estão disponíveis. Apenas ignora.
   const user = await exchangeCodeForUser(code);
   if(user){ try{ localStorage.setItem('discord_user', JSON.stringify(user)); }catch{} renderUserChip(user); }
