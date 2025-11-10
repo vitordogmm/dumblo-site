@@ -89,8 +89,11 @@ function renderUserChip(user){
   const avatarUrl = user && user.avatar
     ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`
     : 'https://cdn.discordapp.com/embed/avatars/0.png';
-  chip.innerHTML = `<img src="${avatarUrl}" alt="Avatar" class="user-avatar" width="24" height="24" />
-    <span class="user-name">${user ? (user.global_name || user.username) : 'Conectado'}</span>`;
+  const handle = user && user.username ? `@${user.username}` : (user ? (user.global_name || 'Conectado') : 'Conectado');
+  chip.innerHTML = `
+    <span class="chip-avatar"><img src="${avatarUrl}" alt="Avatar" class="user-avatar" width="24" height="24" /></span>
+    <span class="user-handle" title="${user ? (user.global_name || user.username) : 'Conectado'}">${handle}</span>
+  `;
   chip.style.display = 'inline-flex';
   // Remover o botão para garantir que não reapareça por CSS
   try{ if(btn) btn.remove(); }catch{ if(btn) btn.style.display = 'none'; }

@@ -39,9 +39,11 @@ a{color:inherit;text-decoration:none}
 .hamburger{display:none;background:transparent;border:0;padding:8px;border-radius:10px}
 .hamburger span{display:block;width:22px;height:2px;background:var(--text);margin:4px 0;border-radius:2px}
 /* User chip (avatar + name) */
-.user-chip{display:inline-flex;align-items:center;gap:8px;background-color:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:6px 10px}
-.user-avatar{border-radius:50%}
-.user-name{font-size:14px;color:var(--text)}
+.user-chip{display:inline-flex;align-items:center;gap:10px;background:linear-gradient(180deg, var(--surface-2), #1a1c22);border:1px solid var(--border);border-radius:999px;padding:6px 12px;box-shadow:0 8px 18px var(--shadow)}
+.user-chip:hover{border-color:rgba(255,122,26,0.25);box-shadow:0 12px 24px var(--shadow)}
+.chip-avatar{width:24px;height:24px;border-radius:50%;overflow:hidden;box-shadow:0 0 0 2px rgba(255,122,26,0.25), 0 6px 12px rgba(0,0,0,0.35)}
+.chip-avatar .user-avatar{width:100%;height:100%;object-fit:cover;display:block;border-radius:50%}
+.user-handle{font-size:14px;color:var(--text);font-weight:600;letter-spacing:.2px;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* Buttons */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;border-radius:12px;border:1px solid transparent;transition:transform .2s ease, box-shadow .2s ease, background .2s ease}
@@ -148,7 +150,9 @@ a{color:inherit;text-decoration:none}
   .actions{gap:8px}
   .user-chip{display:none}
   /* Exibir chip quando logado */
-  body.logged-in .user-chip{display:inline-flex}
+  body.logged-in .user-chip{display:inline-flex;gap:8px;padding:6px 10px}
+  body.logged-in .chip-avatar{width:22px;height:22px;box-shadow:0 0 0 2px rgba(255,122,26,0.25), 0 4px 8px rgba(0,0,0,0.3)}
+  body.logged-in .user-handle{font-size:13px;max-width:110px}
   .actions .btn{display:none}
   /* Mostrar o botão de conectar no mobile em versão compacta */
   .actions #connect-link{display:inline-flex;padding:8px 10px;font-size:14px;border-radius:10px}
