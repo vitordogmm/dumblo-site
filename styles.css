@@ -147,6 +147,8 @@ a{color:inherit;text-decoration:none}
   .hamburger{display:inline-block}
   .actions{gap:8px}
   .user-chip{display:none}
+  /* Exibir chip quando logado */
+  body.logged-in .user-chip{display:inline-flex}
   .actions .btn{display:none}
   /* Mostrar o botão de conectar no mobile em versão compacta */
   .actions #connect-link{display:inline-flex;padding:8px 10px;font-size:14px;border-radius:10px}

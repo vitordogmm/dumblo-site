@@ -103,12 +103,16 @@ async function handleOAuthRedirect(){
   if(!code) return;
   const expect = sessionStorage.getItem('oauth_state');
   // Se não houver 'state' na URL, siga adiante (fallback)
-  if(expect && state && state !== expect){ console.warn('State inválido'); return; }
+  if(expect && state && state !== expect){
+    console.warn('State inválido; prosseguindo com fallback');
+    try{ showToast('State OAuth divergente. Prosseguindo com fallback.', 'info', { duration: 4000 }); }catch{}
+  }
   // In local preview, Netlify functions não estão disponíveis. Apenas ignora.
   const user = await exchangeCodeForUser(code);
   if(user){
     try{ localStorage.setItem('discord_user', JSON.stringify(user)); }catch{}
     renderUserChip(user);
+    try{ document.body.classList.add('logged-in'); }catch{}
     // Persistência opcional no banco via função serverless
     saveUserToDB(user).catch(err=>console.warn('Persistência de usuário falhou:', err));
   }else{
@@ -118,6 +122,7 @@ async function handleOAuthRedirect(){
       const prev = raw ? JSON.parse(raw) : null;
       if(prev){
         renderUserChip(prev);
+        try{ document.body.classList.add('logged-in'); }catch{}
       }else{
         const chip = document.getElementById('user-chip');
         if(chip){ chip.style.display='inline-flex'; chip.innerHTML = '<span class="user-name">Falha ao conectar ao Discord</span>'; }
