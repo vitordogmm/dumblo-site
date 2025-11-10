@@ -7,7 +7,7 @@ function inviteUrl(id){
 
 // --- Discord OAuth (user sign-in) ---
 const DISCORD_CLIENT_ID = BOT_ID;
-const OAUTH_SCOPES = "identify openid email guilds";
+const OAUTH_SCOPES = "identify email";
 // Use Netlify domain in production; allow local preview
 const OAUTH_REDIRECT_URI = (typeof window !== 'undefined' && window.location.hostname !== 'localhost')
   ? 'https://dumblo.netlify.app/'
@@ -69,12 +69,30 @@ async function handleOAuthRedirect(){
   if(user){
     try{ localStorage.setItem('discord_user', JSON.stringify(user)); }catch{}
     renderUserChip(user);
+    // Persistência opcional no banco via função serverless
+    saveUserToDB(user).catch(err=>console.warn('Persistência de usuário falhou:', err));
   }else{
     const chip = document.getElementById('user-chip');
     if(chip){ chip.style.display='inline-flex'; chip.innerHTML = '<span class="user-name">Falha ao conectar ao Discord</span>'; }
   }
   // Limpa parâmetros da URL
   history.replaceState({}, document.title, window.location.pathname);
+}
+
+async function saveUserToDB(user){
+  try{
+    const resp = await fetch('/.netlify/functions/save-user',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ user })
+    });
+    if(!resp.ok){
+      const txt = await resp.text();
+      console.warn('save-user retornou erro:', resp.status, txt);
+    }
+  }catch(err){
+    console.warn('Erro ao chamar save-user:', err);
+  }
 }
 
 function restoreDiscordUser(){
@@ -154,3 +172,15 @@ document.addEventListener('DOMContentLoaded',()=>{
   restoreDiscordUser();
   if(typeof window !== 'undefined') handleOAuthRedirect();
 });
+
+// Redundância: também processa o retorno OAuth no evento load, caso algo impeça DOMContentLoaded
+if (typeof window !== 'undefined') {
+  window.addEventListener('load', () => {
+    try {
+      console.debug('[OAuth] processamento via window.load');
+      handleOAuthRedirect();
+    } catch (e) {
+      console.error('Erro ao processar OAuth no evento load:', e);
+    }
+  });
+}

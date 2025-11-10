@@ -5,6 +5,33 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
+// Fallback simples de fetch para ambientes Node antigos (ex.: Node 16)
+function nodeFetch(url, opts = {}){
+  const https = require('https');
+  return new Promise((resolve, reject)=>{
+    const u = new URL(url);
+    const options = {
+      method: opts.method || 'GET',
+      headers: opts.headers || {},
+    };
+    const req = https.request(u, options, (res)=>{
+      let data = '';
+      res.on('data', (chunk)=> data += chunk);
+      res.on('end', ()=>{
+        resolve({
+          ok: res.statusCode >= 200 && res.statusCode < 300,
+          status: res.statusCode,
+          json: async ()=>{ try{ return JSON.parse(data || '{}'); }catch{ return {}; } },
+          text: async ()=> data
+        });
+      });
+    });
+    req.on('error', reject);
+    if (opts.body) req.write(typeof opts.body === 'string' ? opts.body : String(opts.body));
+    req.end();
+  });
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: corsHeaders, body: '' };
@@ -30,7 +57,8 @@ exports.handler = async (event) => {
       code,
       redirect_uri: redirectUri
     });
-    const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+    const doFetch = (typeof fetch === 'function') ? fetch : nodeFetch;
+    const tokenRes = await doFetch('https://discord.com/api/oauth2/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: form
@@ -40,7 +68,7 @@ exports.handler = async (event) => {
       return { statusCode: tokenRes.status, headers: corsHeaders, body: JSON.stringify(tokenJson) };
     }
     const { access_token, token_type } = tokenJson;
-    const userRes = await fetch('https://discord.com/api/users/@me', {
+    const userRes = await doFetch('https://discord.com/api/users/@me', {
       headers: { 'Authorization': `${token_type} ${access_token}` }
     });
     const userJson = await userRes.json();
@@ -56,4 +84,3 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers: corsHeaders, body: JSON.stringify({ error: 'Server error', detail: String(err) }) };
   }
 };
-
