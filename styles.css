@@ -117,17 +117,25 @@ a{color:inherit;text-decoration:none}
 .cmd-cta{margin-top:28px;display:flex;gap:12px}
 
 /* Command filters: search bar and category chips */
-.cmd-filters{display:grid;gap:12px;margin-top:12px}
-.search-bar{display:flex;align-items:center;background-color:var(--surface-2);border:1px solid var(--border);border-radius:14px;padding:10px 12px;box-shadow:0 8px 16px var(--shadow)}
-.search-bar:focus-within{border-color:rgba(255,122,26,0.35);box-shadow:0 10px 20px var(--shadow), 0 0 0 3px rgba(255,122,26,0.15)}
-.search-ico{opacity:.7;margin-right:8px}
-#cmd-search{flex:1;background:transparent;border:0;color:var(--text);outline:none;font-size:16px}
+.cmd-filters{display:grid;gap:14px;margin-top:16px}
+.search-bar{display:flex;align-items:center;gap:10px;background-color:var(--surface-2);border:1px solid var(--border);border-radius:16px;padding:14px 16px;box-shadow:0 10px 22px var(--shadow);position:relative;overflow:hidden}
+.search-bar::after{content:"";position:absolute;inset:0;background:radial-gradient(280px 140px at -20% 50%, rgba(255,255,255,0.06), transparent 60%);opacity:.0;transform:translateX(-30%);transition:opacity .35s ease, transform .35s ease}
+.search-bar:focus-within{border-color:rgba(255,122,26,0.4);box-shadow:0 14px 26px var(--shadow), 0 0 0 3px rgba(255,122,26,0.18)}
+.search-bar:focus-within::after{opacity:.9;transform:translateX(0)}
+.search-ico{opacity:.85;margin-left:4px}
+#cmd-search{flex:1;background-color:transparent;background:transparent;border:0;border-radius:12px;color:var(--text);outline:none;font-size:18px;line-height:1.4;appearance:none;-webkit-appearance:none;box-shadow:none}
 #cmd-search::placeholder{color:var(--muted)}
-.chip-set{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
-.chip{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background-color:var(--surface-2);color:var(--text);border:1px solid var(--border);cursor:pointer}
-.chip:hover{border-color:rgba(255,122,26,0.25)}
-.chip.active{background:linear-gradient(180deg, #1a1c22, #14161d);border-color:rgba(255,122,26,0.35);box-shadow:0 10px 20px var(--shadow);color:var(--text)}
-.cmd-count{color:var(--muted);font-size:14px;margin-top:6px}
+.chip-set{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:999px;background-color:var(--surface-2);color:var(--text);border:1px solid var(--border);cursor:pointer;user-select:none;transition:transform .15s ease, box-shadow .2s ease, border-color .2s ease;appearance:none;-webkit-appearance:none}
+.chip:hover{transform:translateY(-2px);border-color:rgba(255,122,26,0.28);box-shadow:0 12px 22px var(--shadow)}
+.chip.active{background-image:linear-gradient(135deg, rgba(255,122,26,0.22), rgba(255,154,61,0.18));border-color:rgba(255,122,26,0.45);box-shadow:0 14px 26px var(--shadow), 0 0 0 3px rgba(255,122,26,0.18)}
+.chip::after{content:"";position:absolute;inset:0;border-radius:999px;opacity:0;transition:opacity .2s ease}
+.chip:active{transform:translateY(0);box-shadow:0 6px 14px var(--shadow)}
+.chip{position:relative}
+.chip-all::before{content:"🛠️";margin-right:6px}
+.chip-util::before{content:"🔧";margin-right:6px}
+.chip-rpg::before{content:"⚔️";margin-right:6px}
+.cmd-count{color:var(--muted);font-size:16px;margin-top:6px}
 
 /* Footer */
 .site-footer{border-top:1px solid var(--border);background:rgba(18,19,24,0.6)}
@@ -178,11 +186,11 @@ a{color:inherit;text-decoration:none}
   .features-grid{grid-template-columns:1fr}
   .cmd-grid{grid-template-columns:1fr}
   /* Compact search and chips on mobile */
-  .cmd-filters{gap:10px}
-  .search-bar{padding:8px 10px;border-radius:12px}
-  #cmd-search{font-size:15px}
-  .chip{padding:7px 10px;font-size:14px}
-  .cmd-count{font-size:13px}
+  .cmd-filters{gap:12px}
+  .search-bar{padding:12px 14px;border-radius:14px}
+  #cmd-search{font-size:16px}
+  .chip{padding:9px 12px;font-size:15px}
+  .cmd-count{font-size:14px}
   .footer-grid{grid-template-columns:1fr}
   .menu.open{display:flex;flex-direction:column;position:fixed;top:64px;left:0;right:0;background-color:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;gap:10px}
   .menu-link{padding:12px}
