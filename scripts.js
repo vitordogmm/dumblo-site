@@ -5,6 +5,42 @@ function inviteUrl(id){
   return `https://discord.com/oauth2/authorize?client_id=${id}&permissions=2147576832&scope=bot%20applications.commands`;
 }
 
+// --- Toast helper ---
+function ensureToastContainer(){
+  if(typeof document === 'undefined') return null;
+  let c = document.getElementById('toast');
+  if(!c){
+    c = document.createElement('div');
+    c.id = 'toast';
+    c.className = 'toast-container';
+    c.setAttribute('aria-live','polite');
+    c.setAttribute('aria-atomic','true');
+    document.body.appendChild(c);
+  }
+  return c;
+}
+
+function escapeHtml(s){
+  try{
+    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
+  }catch{ return String(s); }
+}
+
+function showToast(message, type = 'error', opts = {}){
+  const duration = typeof opts.duration === 'number' ? opts.duration : 5000;
+  const container = ensureToastContainer();
+  if(!container) return;
+  const el = document.createElement('div');
+  el.className = `toast ${type || ''}`;
+  el.setAttribute('role','alert');
+  el.innerHTML = `<span class="toast-message">${escapeHtml(message)}</span><button class="toast-close" aria-label="Fechar">×</button>`;
+  container.appendChild(el);
+  const remove = ()=>{ el.classList.add('toast-out'); setTimeout(()=>{ try{ el.remove(); }catch{} }, 200); };
+  const btn = el.querySelector('.toast-close');
+  if(btn) btn.addEventListener('click', remove);
+  if(duration > 0) setTimeout(remove, duration);
+}
+
 // --- Discord OAuth (user sign-in) ---
 const DISCORD_CLIENT_ID = BOT_ID;
 const OAUTH_SCOPES = "identify email";
@@ -36,10 +72,14 @@ async function exchangeCodeForUser(code){
     const data = await res.json().catch(()=>null);
     if(!res.ok){
       console.warn('discord-token falhou', { status: res.status, body: data });
+      const errCode = data && (data.error || data.code || data.status);
+      const errDesc = data && (data.error_description || data.message || data.detail);
+      const msg = `Discord OAuth falhou${errCode ? ` (${errCode})` : ''}${errDesc ? ` — ${errDesc}` : ''}`;
+      showToast(msg, 'error');
       return null;
     }
     return data && data.user ? data.user : null;
-  }catch(err){ console.warn('OAuth erro:', err); return null; }
+  }catch(err){ console.warn('OAuth erro:', err); showToast('Erro de rede ao conectar ao Discord.', 'error'); return null; }
 }
 
 function renderUserChip(user){
@@ -72,8 +112,22 @@ async function handleOAuthRedirect(){
     // Persistência opcional no banco via função serverless
     saveUserToDB(user).catch(err=>console.warn('Persistência de usuário falhou:', err));
   }else{
-    const chip = document.getElementById('user-chip');
-    if(chip){ chip.style.display='inline-flex'; chip.innerHTML = '<span class="user-name">Falha ao conectar ao Discord</span>'; }
+    // Se a troca falhar, mantenha a sessão prévia se existir
+    try{
+      const raw = localStorage.getItem('discord_user');
+      const prev = raw ? JSON.parse(raw) : null;
+      if(prev){
+        renderUserChip(prev);
+      }else{
+        const chip = document.getElementById('user-chip');
+        if(chip){ chip.style.display='inline-flex'; chip.innerHTML = '<span class="user-name">Falha ao conectar ao Discord</span>'; }
+        showToast('Falha ao conectar ao Discord.', 'error');
+      }
+    }catch{
+      const chip = document.getElementById('user-chip');
+      if(chip){ chip.style.display='inline-flex'; chip.innerHTML = '<span class="user-name">Falha ao conectar ao Discord</span>'; }
+      showToast('Falha ao conectar ao Discord.', 'error');
+    }
   }
   // Limpa parâmetros da URL
   history.replaceState({}, document.title, window.location.pathname);
@@ -89,9 +143,11 @@ async function saveUserToDB(user){
     if(!resp.ok){
       const txt = await resp.text();
       console.warn('save-user retornou erro:', resp.status, txt);
+      showToast(`Falha ao salvar seu perfil (HTTP ${resp.status}).`, 'info');
     }
   }catch(err){
     console.warn('Erro ao chamar save-user:', err);
+    showToast('Erro na persistência de perfil do usuário.', 'info');
   }
 }
 
