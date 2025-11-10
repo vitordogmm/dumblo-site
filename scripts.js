@@ -33,9 +33,12 @@ async function exchangeCodeForUser(code){
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ code, redirect_uri: OAUTH_REDIRECT_URI })
     });
-    if(!res.ok) throw new Error('Falha ao trocar código por token');
-    const data = await res.json();
-    return data.user || null;
+    const data = await res.json().catch(()=>null);
+    if(!res.ok){
+      console.warn('discord-token falhou', { status: res.status, body: data });
+      return null;
+    }
+    return data && data.user ? data.user : null;
   }catch(err){ console.warn('OAuth erro:', err); return null; }
 }
 
@@ -63,7 +66,13 @@ async function handleOAuthRedirect(){
   if(expect && state && state !== expect){ console.warn('State inválido'); return; }
   // In local preview, Netlify functions não estão disponíveis. Apenas ignora.
   const user = await exchangeCodeForUser(code);
-  if(user){ try{ localStorage.setItem('discord_user', JSON.stringify(user)); }catch{} renderUserChip(user); }
+  if(user){
+    try{ localStorage.setItem('discord_user', JSON.stringify(user)); }catch{}
+    renderUserChip(user);
+  }else{
+    const chip = document.getElementById('user-chip');
+    if(chip){ chip.style.display='inline-flex'; chip.innerHTML = '<span class="user-name">Falha ao conectar ao Discord</span>'; }
+  }
   // Limpa parâmetros da URL
   history.replaceState({}, document.title, window.location.pathname);
 }
