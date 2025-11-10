@@ -49,7 +49,8 @@ function renderUserChip(user){
   chip.innerHTML = `<img src="${avatarUrl}" alt="Avatar" class="user-avatar" width="24" height="24" />
     <span class="user-name">${user ? (user.global_name || user.username) : 'Conectado'}</span>`;
   chip.style.display = 'inline-flex';
-  if(btn) btn.style.display = 'none';
+  // Remover o botão para garantir que não reapareça por CSS
+  try{ if(btn) btn.remove(); }catch{ if(btn) btn.style.display = 'none'; }
 }
 
 async function handleOAuthRedirect(){
