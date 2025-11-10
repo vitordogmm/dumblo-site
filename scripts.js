@@ -1,6 +1,23 @@
 const BOT_ID = "1435471760979136765";
 const SUPPORT_SERVER_URL = "https://discord.com/invite/6daVxgAudS";
 
+// --- Commands dataset (categorias: Utilidades, RPG) ---
+const COMMANDS = [
+  // Utilidades
+  { name: "/help", cat: "Utilidades", icon: "📚", desc: "Abre a central de ajuda com links (Comandos, Termos, Servidor)." },
+  { name: "/ping", cat: "Utilidades", icon: "📡", desc: "Exibe o status do bot e latências." },
+  // RPG
+  { name: "/start", cat: "RPG", icon: "🌟", desc: "Cria seu personagem e inicia sua jornada." },
+  { name: "/profile", cat: "RPG", icon: "🧙", desc: "Mostra o perfil do personagem (atributos, classe, progresso)." },
+  { name: "/status", cat: "RPG", icon: "📈", desc: "Distribui pontos de status disponíveis via modal." },
+  { name: "/daily", cat: "RPG", icon: "🗓️", desc: "Coleta seus lupins diários; bônus leve por Sorte; cooldown 24h." },
+  { name: "/carteira", cat: "RPG", icon: "💰", desc: "Mostra saldos de lupins na carteira e no banco." },
+  { name: "/depositar", cat: "RPG", icon: "🏦", desc: "Move lupins da carteira para o banco com confirmação." },
+  { name: "/sacar", cat: "RPG", icon: "💸", desc: "Move lupins do banco para a carteira com confirmação." },
+  { name: "/transferir", cat: "RPG", icon: "🔁", desc: "Envia lupins para outro usuário com confirmação." },
+  { name: "/historico", cat: "RPG", icon: "📜", desc: "Exibe seu extrato de transações com paginação." },
+];
+
 function inviteUrl(id){
   return `https://discord.com/oauth2/authorize?client_id=${id}&permissions=2147576832&scope=bot%20applications.commands`;
 }
@@ -216,6 +233,69 @@ function setupMobileNav(){
   });
 }
 
+// --- Commands page: rendering and filters ---
+function renderCommands(list){
+  const grid = document.getElementById('cmd-grid');
+  const count = document.getElementById('cmd-count');
+  if(!grid) return;
+  const safe = Array.isArray(list) ? list : [];
+  grid.innerHTML = safe.map(cmd => `
+    <div class="cmd-card">
+      <div class="cmd-icon" aria-hidden="true">${escapeHtml(cmd.icon || '🔧')}</div>
+      <div class="cmd-body">
+        <h3><code>${escapeHtml(cmd.name)}</code></h3>
+        <p>${escapeHtml(cmd.desc || '')}</p>
+      </div>
+    </div>
+  `).join('');
+  if(count){ count.textContent = `Mostrando ${safe.length} comando(s)`; }
+}
+
+function applyCommandFilters(){
+  const q = (document.getElementById('cmd-search')?.value || '').trim().toLowerCase();
+  const activeChip = document.querySelector('.chip-set .chip.active');
+  const cat = activeChip ? activeChip.getAttribute('data-cat') : 'Todos';
+  const words = q.split(/\s+/).filter(Boolean);
+  const filtered = COMMANDS.filter(cmd => {
+    const inCat = (cat === 'Todos') || (cmd.cat === cat);
+    if(!inCat) return false;
+    if(!words.length) return true;
+    const hay = `${cmd.name} ${cmd.desc} ${cmd.cat}`.toLowerCase();
+    return words.every(w => hay.includes(w));
+  });
+  renderCommands(filtered);
+}
+
+function setupCommandFilters(){
+  const grid = document.getElementById('cmd-grid');
+  if(!grid) return; // apenas roda na página de comandos
+
+  // chips
+  document.querySelectorAll('.chip-set .chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.chip-set .chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      applyCommandFilters();
+    });
+  });
+
+  // search
+  const input = document.getElementById('cmd-search');
+  if(input){
+    input.addEventListener('input', () => {
+      applyCommandFilters();
+    });
+  }
+}
+
+function initCommandsPage(){
+  const grid = document.getElementById('cmd-grid');
+  if(!grid) return; // não está na página de comandos
+  renderCommands(COMMANDS);
+  setupCommandFilters();
+  applyCommandFilters(); // garante contagem correta
+}
+
 document.addEventListener('DOMContentLoaded',()=>{
   setHref(BOT_ID);
   setupSmoothScroll();
@@ -235,6 +315,9 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Restaurar sessão e processar retorno do OAuth
   restoreDiscordUser();
   if(typeof window !== 'undefined') handleOAuthRedirect();
+
+  // Inicializa UI de comandos (busca + categorias)
+  initCommandsPage();
 });
 
 // Redundância: também processa o retorno OAuth no evento load, caso algo impeça DOMContentLoaded

@@ -49,58 +49,20 @@
             <h1 class="title-lg">Comandos do Dumblo</h1>
             <p class="lead">Explore os comandos principais, cada um com uma breve explicação e um visual que ajuda a identificar sua função.</p>
           </div>
-
-          <div class="cmd-grid">
-            <article class="cmd-card sr">
-              <div class="cmd-icon">
-                <svg viewBox="0 0 24 24" width="28" height="28"><path fill="currentColor" d="M5 3h14a2 2 0 012 2v6a2 2 0 01-2 2h-3l-3 4-3-4H5a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
-              </div>
-              <div class="cmd-body">
-                <h3>/status</h3>
-                <p>Exibe status do sistema, uptime e indicadores de saúde.</p>
-              </div>
-            </article>
-
-            <article class="cmd-card sr">
-              <div class="cmd-icon">
-                <svg viewBox="0 0 24 24" width="28" height="28"><path fill="currentColor" d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h12v2H3v-2z"/></svg>
-              </div>
-              <div class="cmd-body">
-                <h3>/help</h3>
-                <p>Lista comandos disponíveis e como utilizá-los.</p>
-              </div>
-            </article>
-
-            <article class="cmd-card sr">
-              <div class="cmd-icon">
-                <svg viewBox="0 0 24 24" width="28" height="28"><path fill="currentColor" d="M12 3a9 9 0 100 18 9 9 0 000-18zm1 13h-2v-2h2v2zm0-4h-2V7h2v5z"/></svg>
-              </div>
-              <div class="cmd-body">
-                <h3>/ping</h3>
-                <p>Mostra latência da API e responsividade do bot.</p>
-              </div>
-            </article>
-
-            <article class="cmd-card sr">
-              <div class="cmd-icon">
-                <svg viewBox="0 0 24 24" width="28" height="28"><path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-3.31 0-8 1.67-8 5v1h16v-1c0-3.33-4.69-5-8-5z"/></svg>
-              </div>
-              <div class="cmd-body">
-                <h3>/profile</h3>
-                <p>Exibe seu perfil RPG: nível, conquistas e histórico.</p>
-              </div>
-            </article>
-
-            <article class="cmd-card sr">
-              <div class="cmd-icon">
-                <svg viewBox="0 0 24 24" width="28" height="28"><path fill="currentColor" d="M12 2l4 8H8l4-8zm0 20l-4-8h8l-4 8z"/></svg>
-              </div>
-              <div class="cmd-body">
-                <h3>/start</h3>
-                <p>Inicia sua jornada. Cria perfil e apresenta as primeiras missões.</p>
-              </div>
-            </article>
+          <div class="cmd-filters sr">
+            <div class="search-bar">
+              <span class="search-ico" aria-hidden="true">🔎</span>
+              <input id="cmd-search" type="text" placeholder="Pesquisar comandos..." aria-label="Pesquisar comandos" />
+            </div>
+            <div class="chip-set" role="tablist" aria-label="Categorias de comandos">
+              <button class="chip chip-all active" data-cat="Todos" role="tab" aria-selected="true">Todos</button>
+              <button class="chip chip-util" data-cat="Utilidades" role="tab" aria-selected="false">Utilidades</button>
+              <button class="chip chip-rpg" data-cat="RPG" role="tab" aria-selected="false">RPG</button>
+            </div>
+            <div class="cmd-count" id="cmd-count">Mostrando 0 comando(s)</div>
           </div>
+
+          <div id="cmd-grid" class="cmd-grid"></div>
 
           <div class="cmd-cta sr">
             <a id="invite-link-commands" class="btn btn-primary btn-lg">Adicionar ao Discord</a>
