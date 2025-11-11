@@ -123,6 +123,10 @@ async function handleOAuthRedirect(){
   const code = qs.get('code');
   const state = qs.get('state');
   if(!code) return;
+  // Evitar reentrância: não tente trocar o mesmo code duas vezes
+  const already = sessionStorage.getItem('oauth_code_processed');
+  if(already === code) return;
+  sessionStorage.setItem('oauth_code_processed', code);
   const expect = sessionStorage.getItem('oauth_state');
   // Se não houver 'state' na URL, siga adiante (fallback)
   if(expect && state && state !== expect){
@@ -350,16 +354,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 // Redundância: também processa o retorno OAuth no evento load, caso algo impeça DOMContentLoaded
-if (typeof window !== 'undefined') {
-  window.addEventListener('load', () => {
-    try {
-      console.debug('[OAuth] processamento via window.load');
-      handleOAuthRedirect();
-    } catch (e) {
-      console.error('Erro ao processar OAuth no evento load:', e);
-    }
-  });
-}
+// Removido processamento duplicado via window.load para evitar segunda tentativa de troca do code
 
 // --- User dropdown menu (Dashboard / Logout) ---
 function ensureUserMenu(){
@@ -369,12 +364,12 @@ function ensureUserMenu(){
   menu.id = 'user-menu';
   menu.className = 'user-menu hidden';
   menu.innerHTML = `
-    <a href="#" class="user-menu-item" data-action="dashboard">
-      <span class="user-menu-icon">📊</span>
+    <a href="#" class="user-menu-item" data-action="dashboard" aria-label="Abrir Dashboard">
+      <span class="user-menu-icon material-symbols-rounded" aria-hidden="true">dashboard</span>
       <span>Dashboard</span>
     </a>
-    <a href="#" class="user-menu-item" data-action="logout">
-      <span class="user-menu-icon">🚪</span>
+    <a href="#" class="user-menu-item" data-action="logout" aria-label="Sair da conta">
+      <span class="user-menu-icon material-symbols-rounded led-red" aria-hidden="true">logout</span>
       <span>Logout</span>
     </a>
   `;
@@ -397,10 +392,21 @@ function setupUserDropdown(){
   const chip = document.getElementById('user-chip');
   if(!chip) return;
   const menu = ensureUserMenu();
-  const toggle = ()=>{ menu.classList.toggle('hidden'); };
+  const position = ()=>{
+    try{
+      const rect = chip.getBoundingClientRect();
+      const top = rect.bottom + 8 + window.scrollY;
+      const left = rect.left + window.scrollX;
+      menu.style.top = `${top}px`;
+      menu.style.left = `${left}px`;
+      menu.style.right = 'auto';
+    }catch{}
+  };
+  const toggle = ()=>{ position(); menu.classList.toggle('hidden'); };
   const hide = ()=>{ menu.classList.add('hidden'); };
   chip.addEventListener('click', (ev)=>{ ev.preventDefault(); toggle(); });
   window.addEventListener('click', (ev)=>{ const inside = chip.contains(ev.target) || menu.contains(ev.target); if(!inside) hide(); });
+  window.addEventListener('resize', ()=>{ if(!menu.classList.contains('hidden')) position(); });
 }
 
 function logoutUser(){
@@ -593,30 +599,59 @@ function logoutUser(){
     if(!card) return;
     const avatarUrl = user && user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128` : 'https://cdn.discordapp.com/embed/avatars/0.png';
     const handle = user ? (user.global_name || user.username || user.id) : '—';
+    const characterName = data?.character?.name || data?.character_name || data?.personagem || data?.nomePersonagem || null;
     const status = data?.status || '—';
     const email = data?.email || user?.email || '—';
     const flags = (data?.flags ?? user?.public_flags ?? '—');
     const stats = data?.stats || {};
+    const level = Number(data?.level0 ?? data?.level ?? data?.nivel ?? 0) || 0;
+    const xp = Number(data?.xp ?? 0) || 0;
+    const requiredXp = Math.max(1, 1000 * (level + 1));
+    const xpPct = Math.max(0, Math.min(100, Math.round((xp / requiredXp) * 100)));
     card.innerHTML = `
       <div class="profile-row">
         <img class="profile-avatar" src="${escapeHtml(avatarUrl)}" alt="Avatar" />
         <div class="profile-meta">
           <strong>${escapeHtml(handle)}</strong>
+          ${characterName ? `<span class="muted">Personagem: ${escapeHtml(String(characterName))}</span>` : ''}
           <span class="status-pill">Status: ${escapeHtml(String(status))}</span>
           <span class="muted">Email: ${escapeHtml(String(email))}</span>
           <span class="muted">Flags: ${escapeHtml(String(flags))}</span>
         </div>
       </div>
+      <div class="profile-xp">
+        <div class="stat-row">
+          <span class="stat-label">XP</span>
+          <div class="stat-bar-outer"><div class="stat-bar-inner" style="width:${xpPct}%"></div></div>
+        </div>
+        <div class="muted">Nível: ${escapeHtml(String(level))} • XP: ${escapeHtml(String(xp))} / ${escapeHtml(String(requiredXp))}</div>
+      </div>
       <div class="stats-grid">
-        ${Object.keys(stats).map(k=>`<div class="stat-pill"><span>${escapeHtml(k)}</span><strong>${escapeHtml(String(stats[k]))}</strong></div>`).join('')}
+        ${Object.entries(normalizeStats(stats)).map(([k,v])=>`<div class="stat-pill"><span>${escapeHtml(k)}</span><strong>${escapeHtml(String(v))}</strong></div>`).join('')}
       </div>
     `;
+  }
+
+  function normalizeStats(stats){
+    const labels = {
+      agility: 'agilidade', charisma: 'carisma', intelligence: 'inteligência', luck: 'sorte', strength: 'força', vitality: 'vitalidade',
+      agilidade: 'agilidade', carisma: 'carisma', inteligência: 'inteligência', sorte: 'sorte', força: 'força', vitalidade: 'vitalidade'
+    };
+    const out = {};
+    for(const [k,v] of Object.entries(stats||{})){
+      if(typeof v !== 'number') continue;
+      const label = labels[k] || k;
+      if(label.toLowerCase() === 'nível' || label.toLowerCase() === 'level' || label.toLowerCase() === 'xp') continue;
+      out[label] = v;
+    }
+    return out;
   }
 
   function renderStatsChart(stats){
     const chart = document.getElementById('stats-chart');
     if(!chart) return;
-    const entries = Object.entries(stats||{}).filter(([,v])=>typeof v === 'number');
+    const norm = normalizeStats(stats);
+    const entries = Object.entries(norm).filter(([,v])=>typeof v === 'number');
     if(!entries.length){ chart.innerHTML = `<div class="muted">Sem dados numéricos para gráficos.</div>`; return; }
     const max = Math.max(...entries.map(([,v])=>v||0), 1);
     chart.innerHTML = entries.map(([k,v])=>{
@@ -634,16 +669,91 @@ function logoutUser(){
     const grid = document.getElementById('guilds-grid');
     if(!grid) return;
     const safe = Array.isArray(guilds) ? guilds : [];
+    function guildIconHtml(g){
+      const url = (g.icon && g.id) ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64` : null;
+      if(url){ return `<img class="guild-icon-img" src="${escapeHtml(url)}" alt="Ícone do servidor" />`; }
+      const initials = String(g.name || 'Servidor').split(/\s+/).filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();
+      return `<div class="guild-icon initials" aria-hidden="true">${escapeHtml(initials || '?')}</div>`;
+    }
     grid.innerHTML = safe.map(g=>`
       <div class="guild-pill">
-        <div class="guild-icon">🛡️</div>
+        ${guildIconHtml(g)}
         <div class="guild-body">
           <strong>${escapeHtml(g.name || 'Servidor')}</strong>
-          <div class="muted">ID: ${escapeHtml(g.id || '—')}${typeof g.memberCount === 'number' ? ` • Membros: ${escapeHtml(String(g.memberCount))}` : ''}${g.hasBot ? ' • Bot: ✅' : ''}</div>
-          ${g.joinedAt || (g.roles && g.roles.length) ? `<div class="muted">${g.joinedAt ? `Entrou: ${escapeHtml(new Date(g.joinedAt).toLocaleDateString())}` : ''}${g.joinedAt && g.roles && g.roles.length ? ' • ' : ''}${g.roles && g.roles.length ? `Cargos: ${escapeHtml(g.roles.join(', '))}` : ''}</div>` : ''}
+          <div class="muted">ID: ${escapeHtml(g.id || '—')}</div>
         </div>
+        <button class="btn btn-outline btn-sm guild-info-btn" data-gid="${escapeHtml(g.id)}" data-gname="${escapeHtml(g.name||'Servidor')}">Ver infos</button>
       </div>
     `).join('');
+    // bind modal openers
+    Array.from(grid.querySelectorAll('.guild-info-btn')).forEach(btn => {
+      btn.addEventListener('click', async ()=>{
+        const gid = btn.getAttribute('data-gid');
+        const gname = btn.getAttribute('data-gname');
+        const user = getUser();
+        const info = await fetchGuildInfo(gid, user?.id);
+        openGuildModal(info || { id: gid, name: gname });
+      });
+    });
+  }
+
+  async function fetchGuildInfo(guildId, userId){
+    try{
+      const tok = getDiscordToken();
+      if(!tok || !tok.access_token){ return null; }
+      const qs = new URLSearchParams();
+      qs.set('guildId', guildId);
+      if(userId) qs.set('userId', userId);
+      const r = await fetch(`/.netlify/functions/discord-guild-info?${qs.toString()}`, { headers: { Authorization: `Bearer ${tok.access_token}` } });
+      if(!r.ok){ return null; }
+      const j = await r.json();
+      return j && (j.guild || j.data || j) || null;
+    }catch{ return null; }
+  }
+
+  function openGuildModal(g){
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    const card = document.createElement('div');
+    card.className = 'modal-card';
+    const iconUrl = (g.icon && g.id) ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64` : null;
+    const initials = String(g.name || 'Servidor').split(/\s+/).filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();
+    const iconHtml = iconUrl ? `<img class="guild-icon-img" src="${escapeHtml(iconUrl)}" alt="Ícone"/>` : `<div class="guild-icon initials">${escapeHtml(initials||'?')}</div>`;
+    const rolesList = Array.isArray(g.roles) ? g.roles.map(r=> (typeof r === 'string' ? r : r.name)).join(', ') : '—';
+    const channelsList = Array.isArray(g.channels) ? g.channels.map(c=> `${c.name} (${c.type})`).join(', ') : '—';
+    const joined = g.joinedAt ? new Date(g.joinedAt).toLocaleDateString('pt-BR') : '—';
+    card.innerHTML = `
+      <div class="modal-head">
+        <div class="modal-title">
+          ${iconHtml}
+          <div class="modal-title-text">
+            <strong>${escapeHtml(g.name||'Servidor')}</strong>
+            <div class="muted">ID: ${escapeHtml(g.id||'—')}</div>
+          </div>
+        </div>
+        <button class="modal-close">Fechar</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-grid">
+          <div><span class="muted">Membros</span><div><strong>${escapeHtml(String(g.memberCount ?? '—'))}</strong></div></div>
+          <div><span class="muted">Entrou</span><div><strong>${escapeHtml(joined)}</strong></div></div>
+          <div><span class="muted">Ícone</span><div>${iconHtml}</div></div>
+        </div>
+        <div class="modal-section">
+          <span class="muted">Cargos</span>
+          <div>${rolesList || '—'}</div>
+        </div>
+        <div class="modal-section">
+          <span class="muted">Canais</span>
+          <div>${channelsList || '—'}</div>
+        </div>
+      </div>
+    `;
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    const close = ()=>{ overlay.remove(); };
+    overlay.addEventListener('click', (e)=>{ if(e.target === overlay) close(); });
+    card.querySelector('.modal-close')?.addEventListener('click', close);
   }
 
   function renderStatsSparkline(history){

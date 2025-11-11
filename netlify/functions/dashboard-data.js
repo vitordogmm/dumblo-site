@@ -73,8 +73,23 @@ async function getDashboardData(userId){
   // Inventário: pode estar embutido em players ou em uma coleção separada
   let inventoryDoc = null;
   try{
-    const invSnap = await database.collection('inventories').doc(userId).get();
-    if(invSnap && invSnap.exists){ inventoryDoc = invSnap.data(); }
+    // Priorizar coleção 'inventory' (pedido do usuário), com fallback para 'inventories'
+    const invSnap1 = await database.collection('inventory').doc(userId).get();
+    if(invSnap1 && invSnap1.exists){ inventoryDoc = invSnap1.data(); }
+    else{
+      const invSnap2 = await database.collection('inventories').doc(userId).get();
+      if(invSnap2 && invSnap2.exists){ inventoryDoc = invSnap2.data(); }
+      else{
+        // Fallback: subcoleção inventory/items
+        try{
+          const itemsColl = await database.collection('inventory').doc(userId).collection('items').get();
+          if(itemsColl && itemsColl.size){
+            const items = itemsColl.docs.map(d=>({ id:d.id, ...(d.data()||{}) }));
+            inventoryDoc = { items };
+          }
+        }catch{/* ignore */}
+      }
+    }
   }catch(e){ /* ignore */ }
 
   // Histórico de estatísticas: tentar campo ou subcoleção
