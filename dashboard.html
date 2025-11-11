@@ -67,7 +67,18 @@
                 <div class="muted">Carregando perfil...</div>
               </div>
               <div class="dash-card" id="stats-card">
-                <h3>Estatísticas</h3>
+                <div class="section-head">
+                  <h3>Estatísticas</h3>
+                  <div class="stats-toolbar" aria-label="Controles de estatísticas">
+                    <label class="form-select">
+                      <span class="muted">Período</span>
+                      <select id="stats-timespan">
+                        <option value="7d" selected>7 dias</option>
+                        <option value="30d">30 dias</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
                 <div id="stats-chart" class="stats-chart"></div>
               </div>
             </section>

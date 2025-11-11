@@ -681,7 +681,15 @@ function logoutUser(){
     if(!grid) return;
     const safe = Array.isArray(guilds) ? guilds : [];
     function guildIconHtml(g){
-      const url = (g.icon && g.id) ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64` : null;
+      let url = null;
+      if(g.icon){
+        const icon = String(g.icon);
+        if(/^https?:\/\//.test(icon)){
+          url = icon;
+        } else if(g.id) {
+          url = `https://cdn.discordapp.com/icons/${g.id}/${icon}.png?size=64`;
+        }
+      }
       if(url){ return `<img class="guild-icon-img" src="${escapeHtml(url)}" alt="Ícone do servidor" />`; }
       const initials = String(g.name || 'Servidor').split(/\s+/).filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();
       return `<div class="guild-icon initials" aria-hidden="true">${escapeHtml(initials || '?')}</div>`;
@@ -796,6 +804,29 @@ function logoutUser(){
     chart.insertAdjacentHTML('beforeend', html);
   }
 
+  function renderStatsTimeseries(stats){
+    const chart = document.getElementById('stats-chart');
+    if(!chart) return;
+    const series = Array.isArray(stats?.series) ? stats.series : [];
+    chart.innerHTML = '';
+    if(!series.length){
+      chart.innerHTML = `<div class="muted">Sem histórico para ${escapeHtml(String(stats?.timespan||'7d'))}.</div>`;
+      return;
+    }
+    const maxXp = Math.max(...series.map(d=> Number(d.xp||0)), 1);
+    chart.innerHTML = series.map(d=>{
+      const pct = Math.max(0, Math.min(100, Math.round((Number(d.xp||0)/maxXp)*100)));
+      const date = String(d.date||'').trim();
+      return `
+        <div class="stat-row">
+          <span class="stat-label">${escapeHtml(date)}</span>
+          <div class="stat-bar-outer"><div class="stat-bar-inner" style="width:${pct}%"></div></div>
+          <span class="muted small">XP ${escapeHtml(String(d.xp||0))} • B ${escapeHtml(String(d.battles||0))} • W ${escapeHtml(String(d.wins||0))} • L ${escapeHtml(String(d.losses||0))}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
   function renderInventory(items){
     const grid = document.getElementById('inventory-grid');
     if(!grid) return;
@@ -815,12 +846,39 @@ function logoutUser(){
     }).join('');
   }
 
+  // Helper para cabeçalho Authorization
+  function getAuthHeader(){
+    try{
+      const raw = localStorage.getItem('discord_token');
+      const tok = raw ? JSON.parse(raw) : null;
+      if(tok && tok.access_token){ return { 'Authorization': `Bearer ${tok.access_token}` }; }
+    }catch{}
+    return {};
+  }
+
   async function fetchDashboardData(userId){
     try{
-  const url = `${API_BASE}/dashboard-data?userId=${encodeURIComponent(userId)}`;
-      const r = await fetch(url);
+      const sel = document.getElementById('stats-timespan');
+      const timespan = sel && sel.value === '30d' ? '30d' : '7d';
+      const includeGuilds = Object.keys(getAuthHeader()).length > 0;
+      const qs = new URLSearchParams();
+      qs.set('userId', String(userId));
+      qs.set('timespan', timespan);
+      qs.set('include', `profile,stats,inventory${includeGuilds ? ',guilds' : ''}`);
+      const r = await fetch(`${API_BASE}/dashboard-data?${qs.toString()}`, { headers: { ...getAuthHeader() }, cache: 'no-store' });
       const json = await r.json().catch(()=>null);
       if(!r.ok){ throw new Error(`HTTP ${r.status}`); }
+      if(Array.isArray(json?.guilds)){
+        json.guilds = json.guilds.map(g=>({
+          id: g.id ?? '',
+          name: g.name ?? 'Servidor',
+          icon: g.icon ?? null,
+          memberCount: g.member_count ?? g.memberCount ?? 0,
+          joinedAt: g.joined_at ?? g.joinedAt ?? null,
+          hasBot: Boolean(g.has_bot ?? g.hasBot ?? false),
+          roles: Array.isArray(g.roles) ? g.roles.map(r=> typeof r === 'string' ? r : (r?.name ?? String(r))) : []
+        }));
+      }
       return json;
     }catch(err){
       console.warn('dashboard-data erro, usando demo local', err);
@@ -858,6 +916,13 @@ function logoutUser(){
     links.forEach(l=> l.addEventListener('click', ()=> setActive(l.dataset.target)));
     // default
     setActive('perfil');
+  }
+
+  // Seletor de período das estatísticas
+  function setupStatsTimespan(onChange){
+    const sel = document.getElementById('stats-timespan');
+    if(!sel) return;
+    sel.addEventListener('change', ()=> onChange(sel.value));
   }
 
   let guildsState = [];
@@ -928,16 +993,30 @@ function logoutUser(){
       }
       return;
     }
-    const data = await fetchDashboardData(user.id);
-    renderProfile(user, data?.user || {});
-    renderStatsChart(data?.user?.stats || {});
-    renderStatsSparkline(data?.user?.stats_history || {});
-    renderInventory(data?.user?.inventory || []);
-    guildsState = Array.isArray(data?.guilds) ? data.guilds : [];
-    const dg = await fetchDiscordGuilds(user.id);
-    if(Array.isArray(dg) && dg.length){ guildsState = dg; }
-    renderGuilds(guildsState);
-    setupGuildFilters();
+    async function load(timespan){
+      const data = await fetchDashboardData(user.id);
+      const profile = data?.profile || data?.user || {};
+      renderProfile(user, profile);
+      if(data?.stats && Array.isArray(data.stats.series)){
+        // série temporal (xp, batalhas...) por período
+        renderStatsTimeseries(data.stats);
+      }else{
+        // atributos de personagem
+        renderStatsChart(profile?.stats || {});
+        renderStatsSparkline(profile?.stats_history || {});
+      }
+      renderInventory(data?.inventory || profile?.inventory || []);
+      guildsState = Array.isArray(data?.guilds) ? data.guilds : [];
+      const dg = await fetchDiscordGuilds(user.id);
+      if(Array.isArray(dg) && dg.length){ guildsState = normalizeGuilds(dg); }
+      renderGuilds(guildsState);
+      setupGuildFilters();
+    }
+
     setupDashboardSections();
+    setupStatsTimespan((value)=>{ load(value); });
+    const initialSel = document.getElementById('stats-timespan');
+    const initialTs = initialSel && initialSel.value ? initialSel.value : '7d';
+    await load(initialTs);
   };
 })();
