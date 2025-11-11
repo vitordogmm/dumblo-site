@@ -63,8 +63,8 @@ const DISCORD_CLIENT_ID = BOT_ID;
 const OAUTH_SCOPES = "identify email guilds";
 // API removida — site funciona 100% estático. Não há chamadas externas.
 
-// Redirect fixo (GitHub Pages)
-const OAUTH_REDIRECT_URI = 'https://vitordogmm.github.io/dumblo-site/';
+// Redirect fixo (Netlify)
+const OAUTH_REDIRECT_URI = 'https://dumblo.netlify.app/';
 
 function buildDiscordAuthUrl(){
   const state = Math.random().toString(36).slice(2);
@@ -93,6 +93,7 @@ function renderUserChip(user){
   const chip = document.getElementById('user-chip');
   const btn = document.getElementById('connect-link');
   if(!chip) return;
+  if(btn){ btn.style.display = 'none'; }
   const avatarUrl = user && user.avatar
     ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`
     : 'https://cdn.discordapp.com/embed/avatars/0.png';
@@ -109,8 +110,8 @@ function renderUserChip(user){
 // API removida: mantemos apenas o tratamento leve
 async function handleOAuthRedirect(){ handleOAuthRedirectLite(); }
 
-// Tratamento leve de retorno OAuth: apenas avisa e limpa a URL
-function handleOAuthRedirectLite(){
+// Tratamento leve de retorno OAuth com tentativa de obter usuário via Netlify Function
+async function handleOAuthRedirectLite(){
   if(typeof window === 'undefined') return;
   try{
     const url = new URL(window.location.href);
@@ -119,7 +120,34 @@ function handleOAuthRedirectLite(){
     const error = params.get('error');
     if(!code && !error) return;
     if(code){
-      showToast('Autorização concluída no Discord.', 'success', { duration: 3500 });
+      const state = params.get('state');
+      const expected = sessionStorage.getItem('oauth_state');
+      if(expected && state && expected !== state){
+        showToast('State inválido. Ignorando resposta OAuth.', 'error', { duration: 4000 });
+      } else {
+        try{
+          const q = new URLSearchParams({ code, redirect_uri: OAUTH_REDIRECT_URI });
+          const resp = await fetch(`/.netlify/functions/discord-user?${q.toString()}`);
+          if(resp.ok){
+            const data = await resp.json();
+            if(data && data.user){
+              try{ localStorage.setItem('discord_user', JSON.stringify(data.user)); }catch{}
+              renderUserChip(data.user);
+              showToast('Conectado ao Discord.', 'success', { duration: 3500 });
+            } else {
+              renderUserChip(null);
+              showToast('Conexão concluída.', 'success', { duration: 3500 });
+            }
+          } else {
+            renderUserChip(null);
+            showToast('Conectado (modo básico).', 'info', { duration: 3500 });
+          }
+        }catch(e){
+          console.warn('Falha ao obter usuário via função:', e);
+          renderUserChip(null);
+          showToast('Conectado (modo básico).', 'info', { duration: 3500 });
+        }
+      }
     } else if(error){
       showToast(`Autorização cancelada: ${error}`, 'warn', { duration: 4000 });
     }
@@ -354,7 +382,9 @@ function setupStats(){
   grid.appendChild(frag);
 
   // Tentativa opcional: substituir valores pelas Netlify Functions
-  if (typeof window !== 'undefined') {
+  // Mantemos os valores locais como fonte de verdade: só busca remoto
+  // se NÃO houver dados locais definidos em window.__STATS__
+  if (typeof window !== 'undefined' && (!window.__STATS__ || window.__STATS__ === undefined)) {
     const fn = '/.netlify/functions/stats';
     fetch(fn).then(async r => {
       if(!r.ok) return;
@@ -453,16 +483,82 @@ function formatCompact(n){
 
 // API removida: sem carregamento remoto de estatísticas.
 
+// Fundo animado inspirado em starfield (exemplo samzinho.fun), com tema laranja
+function initAnimatedBackground(){
+  if (document.getElementById('animated-bg-stars')) return;
+  const canvas = document.createElement('canvas');
+  canvas.id = 'animated-bg-stars';
+  Object.assign(canvas.style, {
+    position:'fixed', inset:'0', width:'100vw', height:'100vh',
+    zIndex:'-2', pointerEvents:'none'
+  });
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const prefersReduce = (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) || false;
+  function resize(){
+    canvas.width = Math.floor(window.innerWidth * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const starCount = Math.min(220, Math.floor(canvas.width * canvas.height / (70 * 70 * dpr)));
+  const stars = Array.from({length: starCount}, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    r: (Math.random() * 1.6 + 0.3) * dpr,
+    baseA: Math.random() * 0.4 + 0.12,
+    amp: Math.random() * 0.3 + 0.05,
+    tw: (Math.random() * 1.2 + 0.3) * (prefersReduce ? 0 : 1),
+    phase: Math.random() * Math.PI * 2,
+    vx: (Math.random() - 0.5) * 0.06 * dpr * (prefersReduce ? 0 : 1),
+    vy: (Math.random() - 0.5) * 0.06 * dpr * (prefersReduce ? 0 : 1)
+  }));
+
+  let last = performance.now();
+  function step(now){
+    const dt = (now - last) / 16.7; // ~60fps delta
+    last = now;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for(const s of stars){
+      s.phase += s.tw * dt;
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      if (s.x < 0) s.x += canvas.width; else if (s.x > canvas.width) s.x -= canvas.width;
+      if (s.y < 0) s.y += canvas.height; else if (s.y > canvas.height) s.y -= canvas.height;
+      const a = Math.min(1, Math.max(0, s.baseA + Math.sin(s.phase) * s.amp));
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(255, 170, 90, ${a})`;
+      ctx.fill();
+      // efeito de linhas curtas em algumas estrelas (movimento sutil)
+      if (!prefersReduce && s.r > dpr*1.2 && Math.random() < 0.04){
+        ctx.strokeStyle = `rgba(255, 122, 26, ${a*0.25})`;
+        ctx.lineWidth = dpr * 0.7;
+        ctx.beginPath();
+        ctx.moveTo(s.x - 8*dpr, s.y);
+        ctx.lineTo(s.x + 8*dpr, s.y);
+        ctx.stroke();
+      }
+    }
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
 document.addEventListener('DOMContentLoaded',()=>{
   setHref(BOT_ID);
   setupSmoothScroll();
   setupReveal();
   setupFaq();
   setupMobileNav();
+  // Fundo animado global (estrelinhas/linhas leves)
+  try{ initAnimatedBackground(); }catch(e){ console.warn('Animated background init falhou:', e); }
   // Configura botão "Conectar ao Discord" com URL fixa
   const connectEl = document.getElementById('connect-link');
   if(connectEl){
-    connectEl.href = 'https://discord.com/oauth2/authorize?client_id=1435471760979136765&response_type=code&redirect_uri=https%3A%2F%2Fvitordogmm.github.io%2Fdumblo-site%2F&scope=email+identify+guilds';
+    connectEl.href = buildDiscordAuthUrl();
   }
   // Restaurar sessão de usuário (apenas leitura local)
   restoreDiscordUser();
