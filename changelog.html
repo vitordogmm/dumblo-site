@@ -39,7 +39,7 @@
       </div>
     </header>
 
-    <main id="changelog-root" class="section" data-repo="dumblo-site" data-owner="vitordogmm" data-season-default="1" data-season1-start="">
+    <main id="changelog-root" class="section" data-season-default="1" data-season1-start="" data-dual="true">
       <div class="container">
         <div class="changelog-head sr">
           <div class="changelog-title">
@@ -58,12 +58,18 @@
           </div>
         </div>
 
-        <div id="commit-meta" class="sr"><span id="commit-count">–</span></div>
+        <h2 class="title-md" style="margin-top:8px">Site</h2>
+        <div id="commit-meta-site" class="sr"><span id="commit-count-site">–</span></div>
+        <section id="commit-list-site" class="commit-list sr"></section>
+        <div id="commit-empty-site" class="commit-empty sr" hidden>
+          <p>Nenhum commit do Site encontrado para o filtro atual.</p>
+        </div>
 
-        <section id="commit-list" class="commit-list sr"></section>
-
-        <div id="commit-empty" class="commit-empty sr" hidden>
-          <p>Nenhum commit encontrado para o filtro atual.</p>
+        <h2 class="title-md" style="margin-top:22px">Bot</h2>
+        <div id="commit-meta-bot" class="sr"><span id="commit-count-bot">–</span></div>
+        <section id="commit-list-bot" class="commit-list sr"></section>
+        <div id="commit-empty-bot" class="commit-empty sr" hidden>
+          <p>Nenhum commit do Bot encontrado para o filtro atual.</p>
         </div>
       </div>
     </main>

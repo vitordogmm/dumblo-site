@@ -6,15 +6,17 @@ const COMMANDS = [
   // Utilidades
   { name: "/help", cat: "Utilidades", icon: "📚", desc: "Abre a central de ajuda com links (Comandos, Termos, Servidor)." },
   { name: "/ping", cat: "Utilidades", icon: "📡", desc: "Exibe o status do bot e latências." },
+  { name: "/botinfo", cat: "Utilidades", icon: "🤖", desc: "Veja informações sobre o bot.", new: true },
   // RPG
   { name: "/start", cat: "RPG", icon: "🌟", desc: "Cria seu personagem e inicia sua jornada." },
   { name: "/profile", cat: "RPG", icon: "🧙", desc: "Mostra o perfil do personagem (atributos, classe, progresso)." },
   { name: "/status", cat: "RPG", icon: "📈", desc: "Distribui pontos de status disponíveis via modal." },
-  { name: "/daily", cat: "RPG", icon: "🗓️", desc: "Coleta seus lupins diários; bônus leve por Sorte; cooldown 24h." },
-  { name: "/carteira", cat: "RPG", icon: "💰", desc: "Mostra saldos de lupins na carteira e no banco." },
-  { name: "/depositar", cat: "RPG", icon: "🏦", desc: "Move lupins da carteira para o banco com confirmação." },
-  { name: "/sacar", cat: "RPG", icon: "💸", desc: "Move lupins do banco para a carteira com confirmação." },
-  { name: "/transferir", cat: "RPG", icon: "🔁", desc: "Envia lupins para outro usuário com confirmação." },
+  { name: "/aventura", cat: "RPG", icon: "🗺️", desc: "Inicie uma aventura pelo mundo mágico.", new: true },
+  { name: "/daily", cat: "RPG", icon: "🗓️", desc: "Colete lupins diários.", new: true },
+  { name: "/carteira", cat: "RPG", icon: "💰", desc: "Veja seus lupins.", new: true },
+  { name: "/depositar", cat: "RPG", icon: "🏦", desc: "Deposite seus lupins no banco.", new: true },
+  { name: "/sacar", cat: "RPG", icon: "💸", desc: "Saque seus lupins do banco.", new: true },
+  { name: "/transferir", cat: "RPG", icon: "🔁", desc: "Transfira seus lupins a outros usuários.", new: true },
   { name: "/historico", cat: "RPG", icon: "📜", desc: "Exibe seu extrato de transações com paginação." },
 ];
 
@@ -122,32 +124,31 @@ async function handleOAuthRedirectLite(){
     if(code){
       const state = params.get('state');
       const expected = sessionStorage.getItem('oauth_state');
-      if(expected && state && expected !== state){
-        showToast('State inválido. Ignorando resposta OAuth.', 'error', { duration: 4000 });
-      } else {
-        try{
-          const q = new URLSearchParams({ code, redirect_uri: OAUTH_REDIRECT_URI });
-          const resp = await fetch(`/.netlify/functions/discord-user?${q.toString()}`);
-          if(resp.ok){
-            const data = await resp.json();
-            if(data && data.user){
-              try{ localStorage.setItem('discord_user', JSON.stringify(data.user)); }catch{}
-              renderUserChip(data.user);
-              showToast('Conectado ao Discord.', 'success', { duration: 3500 });
-            } else {
-              renderUserChip(null);
-              showToast('Conexão concluída.', 'success', { duration: 3500 });
-            }
+      const mismatch = !!(expected && state && expected !== state);
+      try{
+        const q = new URLSearchParams({ code, redirect_uri: OAUTH_REDIRECT_URI });
+        const resp = await fetch(`/.netlify/functions/discord-user?${q.toString()}`);
+        if(resp.ok){
+          const data = await resp.json();
+          if(data && data.user){
+            try{ localStorage.setItem('discord_user', JSON.stringify(data.user)); }catch{}
+            renderUserChip(data.user);
+            showToast('Conectado ao Discord.', 'success', { duration: 3500 });
           } else {
             renderUserChip(null);
-            showToast('Conectado (modo básico).', 'info', { duration: 3500 });
+            showToast('Conexão concluída.', 'success', { duration: 3500 });
           }
-        }catch(e){
-          console.warn('Falha ao obter usuário via função:', e);
+        } else {
           renderUserChip(null);
           showToast('Conectado (modo básico).', 'info', { duration: 3500 });
         }
+      }catch(e){
+        console.warn('Falha ao obter usuário via função:', e);
+        renderUserChip(null);
+        showToast('Conectado (modo básico).', 'info', { duration: 3500 });
       }
+      // Não exibe erro de state ao usuário; se houver mismatch, apenas ignora
+      if(mismatch){ try{ sessionStorage.removeItem('oauth_state'); }catch{} }
     } else if(error){
       showToast(`Autorização cancelada: ${error}`, 'warn', { duration: 4000 });
     }
@@ -230,6 +231,7 @@ function renderCommands(list){
   const safe = Array.isArray(list) ? list : [];
   grid.innerHTML = safe.map(cmd => `
     <div class="cmd-card">
+      ${cmd.new ? '<span class="cmd-badge" aria-label="Novo comando">NEW</span>' : ''}
       <div class="cmd-icon" aria-hidden="true">${escapeHtml(cmd.icon || '🔧')}</div>
       <div class="cmd-body">
         <h3><code>${escapeHtml(cmd.name)}</code></h3>
@@ -558,7 +560,13 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Configura botão "Conectar ao Discord" com URL fixa
   const connectEl = document.getElementById('connect-link');
   if(connectEl){
-    connectEl.href = buildDiscordAuthUrl();
+    // Evita gerar novo state a cada carregamento (causava mismatch na volta do OAuth)
+    connectEl.href = '#';
+    connectEl.addEventListener('click', (ev)=>{
+      ev.preventDefault();
+      try{ window.location.href = buildDiscordAuthUrl(); }
+      catch{ showToast('Não foi possível iniciar login.', 'error'); }
+    });
   }
   // Restaurar sessão de usuário (apenas leitura local)
   restoreDiscordUser();
@@ -687,6 +695,39 @@ function logoutUser(){
     }).join('');
   }
 
+  // Renderiza em uma seção específica (site|bot) quando a página possui categorias
+  function renderCommitsSection(section, commits){
+    const root = document.getElementById(`commit-list-${section}`);
+    const count = document.getElementById(`commit-count-${section}`);
+    const empty = document.getElementById(`commit-empty-${section}`);
+    if(!root) return;
+    const safe = Array.isArray(commits) ? commits : [];
+    if(count) count.textContent = `Mostrando ${safe.length} commit(s)`;
+    if(empty) empty.hidden = safe.length > 0;
+    root.innerHTML = safe.map(c => {
+      const msg = firstLine(c.commit && c.commit.message);
+      const author = (c.commit && c.commit.author && c.commit.author.name) || (c.author && c.author.login) || '—';
+      const date = (c.commit && c.commit.author && c.commit.author.date) || null;
+      const url = c.html_url || (c.url ? c.url.replace('api.github.com/repos','github.com') : '#');
+      return `
+        <article class="commit-card">
+          <div class="commit-top">
+            <div class="commit-icon" aria-hidden="true">📝</div>
+            <div class="commit-msg">${escapeHtml(msg || 'Commit')}</div>
+          </div>
+          <div class="commit-meta">
+            <span>${escapeHtml(author)}</span>
+            <span>•</span>
+            <span>${date ? escapeHtml(formatDate(date)) : ''}</span>
+            <span>•</span>
+            <span>#${escapeHtml(shortSha(c.sha || ''))}</span>
+          </div>
+          <a class="commit-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">Ver commit ↗</a>
+        </article>
+      `;
+    }).join('');
+  }
+
   function filterByText(commits, q){
     const words = String(q || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
     if(!words.length) return commits;
@@ -736,6 +777,13 @@ function logoutUser(){
     renderCommits(filtered);
   }
 
+  async function loadAndRenderSection(section, { owner, repo, season, q }){
+    const range = seasonRange(season);
+    const commits = await fetchCommits({ owner, repo, since: range.since, until: range.until, perPage: 50 });
+    const filtered = filterByText(commits, q);
+    renderCommitsSection(section, filtered);
+  }
+
   function setupChips(onChange){
     const container = document.querySelector('.cmd-filters');
     if(!container) return;
@@ -776,9 +824,14 @@ function logoutUser(){
     const root = document.getElementById('changelog-root');
     if(!root) return; // não está na página de changelog
 
-    const { owner, repo } = parseRepoParam();
-    if(!owner || !repo){
-      showToast('Configure o repositório via ?repo=owner/nome ou data-owner/data-repo.', 'info', { duration: 6000 });
+    const hasDual = !!(document.getElementById('commit-list-site') && document.getElementById('commit-list-bot'));
+    let owner = null, repo = null;
+    if(!hasDual){
+      const parsed = parseRepoParam();
+      owner = parsed.owner; repo = parsed.repo;
+      if(!owner || !repo){
+        showToast('Configure o repositório via ?repo=owner/nome ou data-owner/data-repo.', 'info', { duration: 6000 });
+      }
     }
 
     let currentSeason = parseSeason() || (root.dataset.seasonDefault || 'all');
@@ -790,7 +843,20 @@ function logoutUser(){
     const targetChip = chips.find(c => c.getAttribute('data-season') === String(currentSeason)) || chips[0];
     if(targetChip){ targetChip.classList.add('active'); }
 
-    const reload = ()=> loadAndRender({ owner, repo, season: currentSeason, q: currentQuery });
+    const reload = ()=> {
+      if(hasDual){
+        const repos = {
+          site: { owner: 'vitordogmm', repo: 'dumblo-site' },
+          bot:  { owner: 'vitordogmm', repo: 'dumblo' }
+        };
+        Promise.all([
+          loadAndRenderSection('site', { ...repos.site, season: currentSeason, q: currentQuery }),
+          loadAndRenderSection('bot',  { ...repos.bot,  season: currentSeason, q: currentQuery })
+        ]);
+      } else {
+        loadAndRender({ owner, repo, season: currentSeason, q: currentQuery });
+      }
+    };
 
     setupChips((season)=>{ currentSeason = season; reload(); });
     setupSearch((q)=>{ currentQuery = q; reload(); });

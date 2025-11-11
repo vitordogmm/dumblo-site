@@ -157,12 +157,16 @@ box-shadow:0 12px 24px var(--shadow), inset 0 0 14px rgba(255,122,26,0.07)}
 /* Commands page */
 .page-head{margin-bottom:12px}
 .cmd-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:18px}
-.cmd-card{display:flex;gap:14px;align-items:flex-start;background-color:var(--surface-2);border:1px solid var(--border);border-radius:16px;padding:16px;transition:transform .2s ease, box-shadow .2s ease}
+.cmd-card{display:flex;gap:14px;align-items:flex-start;background-color:var(--surface-2);border:1px solid var(--border);border-radius:16px;padding:16px;transition:transform .2s ease, box-shadow .2s ease;position:relative}
 .cmd-card:hover{transform:translateY(-4px);box-shadow:0 18px 30px var(--shadow)}
 .cmd-icon{flex:0 0 44px;width:44px;height:44px;border-radius:12px;background:rgba(255,122,26,0.1);color:var(--primary);display:flex;align-items:center;justify-content:center}
 .cmd-body h3{margin:0 0 6px}
 .cmd-body p{color:var(--muted)}
 .cmd-cta{margin-top:28px;display:flex;gap:12px}
+/* NEW badge for commands */
+.cmd-badge{position:absolute;top:-8px;right:-8px;display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;background-image:linear-gradient(135deg,var(--primary),var(--primary-2));color:#161616;font-weight:800;font-size:11px;letter-spacing:.5px;border:1px solid rgba(255,122,26,0.55);box-shadow:0 10px 24px var(--glow), 0 6px 16px rgba(0,0,0,0.35);z-index:2;text-transform:uppercase}
+.cmd-badge::after{content:"";position:absolute;right:16px;bottom:-6px;width:10px;height:10px;background:linear-gradient(135deg,var(--primary),var(--primary-2));border-right:1px solid rgba(255,122,26,0.55);border-bottom:1px solid rgba(255,122,26,0.55);box-shadow:0 6px 12px var(--glow);transform:rotate(45deg);border-radius:2px}
+.cmd-card:hover .cmd-badge{transform:translateY(-1px)}
 
 /* Command filters: search bar and category chips */
 .cmd-filters{display:grid;gap:14px;margin-top:16px}
