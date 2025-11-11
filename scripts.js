@@ -67,10 +67,8 @@ const API_BASE = (typeof window !== 'undefined' && (window.__API_BASE__ || local
   ? (window.__API_BASE__ || localStorage.getItem('API_BASE'))
   : '/api';
 
-// Redirect dinâmico: usa o domínio atual da página
-const OAUTH_REDIRECT_URI = (typeof window !== 'undefined')
-  ? `${window.location.origin}/`
-  : 'https://vitordogmm.github.io/dumblo-site/';
+// Redirect fixo (GitHub Pages)
+const OAUTH_REDIRECT_URI = 'https://vitordogmm.github.io/dumblo-site/';
 
 function buildDiscordAuthUrl(){
   const state = Math.random().toString(36).slice(2);
@@ -354,8 +352,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Botão Conectar Discord
   const connect = document.getElementById('connect-link');
   if(connect){
-    // Aciona login via API interna
-    try{ connect.removeAttribute('href'); }catch{}
+    // Fallback direto para Discord; click usa API para iniciar login
+    try{ connect.href = buildDiscordAuthUrl(); }catch{}
     connect.addEventListener('click',(e)=>{ e.preventDefault(); startDiscordLogin(); });
   }
   // Restaurar sessão e processar retorno do OAuth
@@ -930,7 +928,10 @@ function logoutUser(){
     if(!user){
       showToast('Faça login com Discord para ver seu dashboard.', 'info');
       const link = document.getElementById('connect-link');
-      if(link){ link.addEventListener('click', (e)=>{ e.preventDefault(); startDiscordLogin(); }); }
+      if(link){
+        try{ link.href = buildDiscordAuthUrl(); }catch{}
+        link.addEventListener('click', (e)=>{ e.preventDefault(); startDiscordLogin(); });
+      }
       return;
     }
     const data = await fetchDashboardData(user.id);
