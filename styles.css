@@ -146,6 +146,22 @@ a{color:inherit;text-decoration:none}
 .chip-rpg::before{content:"⚔️";margin-right:6px}
 .cmd-count{color:var(--muted);font-size:16px;margin-top:6px}
 
+/* API doc page */
+.api-doc{display:block}
+.api-doc .doc-section{background-color:var(--surface-2);border:1px solid var(--border);border-radius:16px;padding:18px;margin:18px 0}
+.api-doc h2{margin:0 0 10px}
+.api-doc h3{margin:12px 0 8px}
+.api-doc ul{margin:8px 0 0 18px}
+.api-doc ol{margin:8px 0 0 18px}
+.api-doc .endpoint-list li{margin:6px 0}
+.api-doc code{background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:6px;padding:2px 6px}
+.api-doc pre{background-color:#1a1c22;border:1px solid var(--border);border-radius:12px;padding:14px;overflow:auto;box-shadow:0 10px 20px var(--shadow)}
+.api-doc pre code{background:transparent;border:0;padding:0;display:block;white-space:pre}
+
+/* Alerts */
+.alert{border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:10px}
+.alert-warning{background:rgba(255,200,0,0.12);border-color:rgba(255,200,0,0.28);color:#ffd266}
+
 /* Footer */
 .site-footer{border-top:1px solid var(--border);background:rgba(18,19,24,0.6)}
 .footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:18px;padding:26px 0}

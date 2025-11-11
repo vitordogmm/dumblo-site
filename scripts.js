@@ -67,13 +67,10 @@ const API_BASE = (typeof window !== 'undefined' && (window.__API_BASE__ || local
   ? (window.__API_BASE__ || localStorage.getItem('API_BASE'))
   : '/api';
 
-// Redirect do OAuth dinâmico: funciona em GitHub Pages (repo path) e em produção/custom domain
-// Em desenvolvimento, mantenha localhost:8000 para coincidir com a URI permitida no Discord
-const OAUTH_REDIRECT_URI = (typeof window !== 'undefined' && window.location.hostname === 'localhost')
-  ? 'http://localhost:8000/'
-  : (typeof window !== 'undefined'
-      ? (window.location.origin + window.location.pathname.replace(/[^/]*$/, ''))
-      : 'https://example.com/');
+// Redirect dinâmico: usa o domínio atual da página
+const OAUTH_REDIRECT_URI = (typeof window !== 'undefined')
+  ? `${window.location.origin}/`
+  : 'https://vitordogmm.github.io/dumblo-site/';
 
 function buildDiscordAuthUrl(){
   const state = Math.random().toString(36).slice(2);
@@ -88,16 +85,34 @@ function buildDiscordAuthUrl(){
   return `https://discord.com/oauth2/authorize?${params.toString()}`;
 }
 
-async function exchangeCodeForUser(code){
+// Inicia login via API interna (/v1/auth/discord/login)
+async function startDiscordLogin(){
   try{
-    const res = await fetch(`${API_BASE}/discord-token`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ code, redirect_uri: OAUTH_REDIRECT_URI })
-    });
+    const url = `${API_BASE}/v1/auth/discord/login?redirect=${encodeURIComponent(OAUTH_REDIRECT_URI)}`;
+    const res = await fetch(url, { method: 'GET' });
     const data = await res.json().catch(()=>null);
     if(!res.ok){
-      console.warn('discord-token falhou', { status: res.status, body: data });
+      const errCode = data && (data.error || data.code || data.status);
+      const errDesc = data && (data.error_description || data.message || data.detail);
+      showToast(`Falha ao iniciar login${errCode?` (${errCode})`:''}${errDesc?` — ${errDesc}`:''}`, 'error');
+      return;
+    }
+    const loginUrl = data?.url || data?.authorize_url || null;
+    if(loginUrl){ window.location.href = loginUrl; }
+    else{ showToast('Resposta inválida do endpoint de login.', 'error'); }
+  }catch(err){
+    console.warn('Erro ao iniciar login via API:', err);
+    showToast('Erro de rede ao iniciar login.', 'error');
+  }
+}
+
+async function exchangeCodeForUser(code, state){
+  try{
+    const url = `${API_BASE}/v1/auth/discord/callback?code=${encodeURIComponent(code)}&redirect=${encodeURIComponent(OAUTH_REDIRECT_URI)}${state?`&state=${encodeURIComponent(state)}`:''}`;
+    const res = await fetch(url, { method:'GET' });
+    const data = await res.json().catch(()=>null);
+    if(!res.ok){
+      console.warn('auth/discord/callback falhou', { status: res.status, body: data });
       const errCode = data && (data.error || data.code || data.status);
       const errDesc = data && (data.error_description || data.message || data.detail);
       const msg = `Discord OAuth falhou${errCode ? ` (${errCode})` : ''}${errDesc ? ` — ${errDesc}` : ''}`;
@@ -143,7 +158,7 @@ async function handleOAuthRedirect(){
     try{ showToast('State OAuth divergente. Prosseguindo com fallback.', 'info', { duration: 4000 }); }catch{}
   }
   // Em preview local, a API pode não estar disponível; seguir com fallback.
-  const data = await exchangeCodeForUser(code);
+  const data = await exchangeCodeForUser(code, state);
   const user = data && data.user;
   if(user){
     try{ localStorage.setItem('discord_user', JSON.stringify(user)); }catch{}
@@ -339,12 +354,9 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Botão Conectar Discord
   const connect = document.getElementById('connect-link');
   if(connect){
-    // Define href para fallback caso o listener não dispare
-    try{ connect.href = buildDiscordAuthUrl(); }catch{}
-    connect.addEventListener('click',(e)=>{
-      e.preventDefault();
-      window.location.href = buildDiscordAuthUrl();
-    });
+    // Aciona login via API interna
+    try{ connect.removeAttribute('href'); }catch{}
+    connect.addEventListener('click',(e)=>{ e.preventDefault(); startDiscordLogin(); });
   }
   // Restaurar sessão e processar retorno do OAuth
   restoreDiscordUser();
@@ -918,7 +930,7 @@ function logoutUser(){
     if(!user){
       showToast('Faça login com Discord para ver seu dashboard.', 'info');
       const link = document.getElementById('connect-link');
-      if(link){ try{ link.href = buildDiscordAuthUrl(); }catch{} }
+      if(link){ link.addEventListener('click', (e)=>{ e.preventDefault(); startDiscordLogin(); }); }
       return;
     }
     const data = await fetchDashboardData(user.id);
