@@ -67,6 +67,11 @@ const API_BASE = (typeof window !== 'undefined' && (window.__API_BASE__ || local
   ? (window.__API_BASE__ || localStorage.getItem('API_BASE'))
   : '/api';
 
+// Base de autenticação (para endpoints legado como discord-token/save-user)
+const AUTH_BASE = (typeof window !== 'undefined' && (window.__AUTH_BASE__ || localStorage.getItem('AUTH_BASE')))
+  ? (window.__AUTH_BASE__ || localStorage.getItem('AUTH_BASE'))
+  : '/api';
+
 // Redirect fixo (GitHub Pages)
 const OAUTH_REDIRECT_URI = 'https://vitordogmm.github.io/dumblo-site/';
 
@@ -85,32 +90,21 @@ function buildDiscordAuthUrl(){
 
 // Inicia login via API interna (/v1/auth/discord/login)
 async function startDiscordLogin(){
-  try{
-    const url = `${API_BASE}/v1/auth/discord/login?redirect=${encodeURIComponent(OAUTH_REDIRECT_URI)}`;
-    const res = await fetch(url, { method: 'GET' });
-    const data = await res.json().catch(()=>null);
-    if(!res.ok){
-      const errCode = data && (data.error || data.code || data.status);
-      const errDesc = data && (data.error_description || data.message || data.detail);
-      showToast(`Falha ao iniciar login${errCode?` (${errCode})`:''}${errDesc?` — ${errDesc}`:''}`, 'error');
-      return;
-    }
-    const loginUrl = data?.url || data?.authorize_url || null;
-    if(loginUrl){ window.location.href = loginUrl; }
-    else{ showToast('Resposta inválida do endpoint de login.', 'error'); }
-  }catch(err){
-    console.warn('Erro ao iniciar login via API:', err);
-    showToast('Erro de rede ao iniciar login.', 'error');
-  }
+  // Fluxo simplificado: redireciona diretamente para o OAuth do Discord
+  try{ window.location.href = buildDiscordAuthUrl(); }
+  catch{ showToast('Não foi possível iniciar login.', 'error'); }
 }
 
 async function exchangeCodeForUser(code, state){
   try{
-    const url = `${API_BASE}/v1/auth/discord/callback?code=${encodeURIComponent(code)}&redirect=${encodeURIComponent(OAUTH_REDIRECT_URI)}${state?`&state=${encodeURIComponent(state)}`:''}`;
-    const res = await fetch(url, { method:'GET' });
+    const res = await fetch(`${AUTH_BASE}/discord-token`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ code, redirect_uri: OAUTH_REDIRECT_URI, state })
+    });
     const data = await res.json().catch(()=>null);
     if(!res.ok){
-      console.warn('auth/discord/callback falhou', { status: res.status, body: data });
+      console.warn('discord-token falhou', { status: res.status, body: data });
       const errCode = data && (data.error || data.code || data.status);
       const errDesc = data && (data.error_description || data.message || data.detail);
       const msg = `Discord OAuth falhou${errCode ? ` (${errCode})` : ''}${errDesc ? ` — ${errDesc}` : ''}`;
@@ -207,7 +201,7 @@ async function fetchDiscordGuilds(userId){
 
 async function saveUserToDB(user){
   try{
-    const resp = await fetch(`${API_BASE}/save-user`,{
+    const resp = await fetch(`${AUTH_BASE}/save-user`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ user })
@@ -243,7 +237,7 @@ function setupSmoothScroll(){
   document.querySelectorAll('a[href^="#"]').forEach(a=>{
     a.addEventListener('click',ev=>{
       const href = a.getAttribute('href');
-      if(!href || href.length<2) return;
+      if(!href || href.length<2 || href[0] !== '#') return;
       const target = document.querySelector(href);
       if(!target) return;
       ev.preventDefault();
