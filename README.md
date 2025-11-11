@@ -14,25 +14,14 @@ Landing page estática do bot de RPG Dumblo.
 - `scripts.js` — Links dinâmicos (convite/suporte) e animações
 - `dumblo-logo.png` — Logo utilizada no site
 
-## Deploy no Netlify
-Há um arquivo `netlify.toml` com configuração pronta (headers de segurança e cache).
+## Deploy no GitHub Pages
+O repositório inclui um workflow (`.github/workflows/deploy-pages.yml`) para publicar no GitHub Pages.
 
-Opção 1 — Conectar com GitHub:
-1. No Netlify, crie um novo site “Import from Git”.
-2. Selecione este repositório e a branch `main`.
-3. Build command: deixe em branco (site estático). Publish directory: `.` (raiz).
-4. Deploy automático a cada push.
-
-Opção 2 — CLI (local):
-```bash
-npm i -g netlify-cli
-netlify login
-netlify init    # escolha criar um novo site ou vincular a um existente
-netlify deploy --prod --dir .
-```
-
-## Deploy no GitHub Pages (alternativo)
-O repositório também inclui um workflow (`.github/workflows/deploy-pages.yml`) para publicar no GitHub Pages, caso prefira.
+Passos:
+1. Faça push para a branch `main` no GitHub.
+2. Acesse Settings → Pages e selecione “GitHub Actions” como fonte.
+3. O deploy será feito automaticamente a cada push; a URL será `https://<usuario>.github.io/<repo>/`.
+4. Se usar domínio próprio, configure o CNAME em Settings → Pages e ajuste o DNS.
 
 ## Subir para o GitHub
 ```bash

@@ -61,10 +61,19 @@ function showToast(message, type = 'error', opts = {}){
 // --- Discord OAuth (user sign-in) ---
 const DISCORD_CLIENT_ID = BOT_ID;
 const OAUTH_SCOPES = "identify email guilds";
-// Use Netlify domain in production; allow local preview
-const OAUTH_REDIRECT_URI = (typeof window !== 'undefined' && window.location.hostname !== 'localhost')
-  ? 'https://dumblo.netlify.app/'
-  : 'http://localhost:8000/';
+// Base de API parametrizável para permitir troca de host de backend
+// Defina window.__API_BASE__ em produção (ex.: "https://<seu-host>/api") para substituir o padrão.
+const API_BASE = (typeof window !== 'undefined' && (window.__API_BASE__ || localStorage.getItem('API_BASE')))
+  ? (window.__API_BASE__ || localStorage.getItem('API_BASE'))
+  : '/api';
+
+// Redirect do OAuth dinâmico: funciona em GitHub Pages (repo path) e em produção/custom domain
+// Em desenvolvimento, mantenha localhost:8000 para coincidir com a URI permitida no Discord
+const OAUTH_REDIRECT_URI = (typeof window !== 'undefined' && window.location.hostname === 'localhost')
+  ? 'http://localhost:8000/'
+  : (typeof window !== 'undefined'
+      ? (window.location.origin + window.location.pathname.replace(/[^/]*$/, ''))
+      : 'https://example.com/');
 
 function buildDiscordAuthUrl(){
   const state = Math.random().toString(36).slice(2);
@@ -81,7 +90,7 @@ function buildDiscordAuthUrl(){
 
 async function exchangeCodeForUser(code){
   try{
-    const res = await fetch('/.netlify/functions/discord-token',{
+    const res = await fetch(`${API_BASE}/discord-token`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ code, redirect_uri: OAUTH_REDIRECT_URI })
@@ -133,7 +142,7 @@ async function handleOAuthRedirect(){
     console.warn('State inválido; prosseguindo com fallback');
     try{ showToast('State OAuth divergente. Prosseguindo com fallback.', 'info', { duration: 4000 }); }catch{}
   }
-  // In local preview, Netlify functions não estão disponíveis. Apenas ignora.
+  // Em preview local, a API pode não estar disponível; seguir com fallback.
   const data = await exchangeCodeForUser(code);
   const user = data && data.user;
   if(user){
@@ -174,7 +183,7 @@ async function fetchDiscordGuilds(userId){
   const tok = getDiscordToken();
   if(!tok || !tok.access_token) return null;
   try{
-    const r = await fetch(`/.netlify/functions/discord-guilds?userId=${encodeURIComponent(userId)}`,{
+    const r = await fetch(`${API_BASE}/discord-guilds?userId=${encodeURIComponent(userId)}`,{
       headers: { 'Authorization': `Bearer ${tok.access_token}` }
     });
     const j = await r.json().catch(()=>null);
@@ -185,7 +194,7 @@ async function fetchDiscordGuilds(userId){
 
 async function saveUserToDB(user){
   try{
-    const resp = await fetch('/.netlify/functions/save-user',{
+    const resp = await fetch(`${API_BASE}/save-user`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ user })
@@ -427,7 +436,7 @@ function logoutUser(){
     if(perPage) qs.set('per_page', String(perPage));
     if(since) qs.set('since', since);
     if(until) qs.set('until', until);
-    const path = `/.netlify/functions/github-commits?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}&${qs.toString()}`;
+  const path = `${API_BASE}/github-commits?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}&${qs.toString()}`;
     try{
       const r = await fetch(path);
       if(r.ok){ return await r.json(); }
@@ -702,7 +711,7 @@ function logoutUser(){
       const qs = new URLSearchParams();
       qs.set('guildId', guildId);
       if(userId) qs.set('userId', userId);
-      const r = await fetch(`/.netlify/functions/discord-guild-info?${qs.toString()}`, { headers: { Authorization: `Bearer ${tok.access_token}` } });
+  const r = await fetch(`${API_BASE}/discord-guild-info?${qs.toString()}`, { headers: { Authorization: `Bearer ${tok.access_token}` } });
       if(!r.ok){ return null; }
       const j = await r.json();
       return j && (j.guild || j.data || j) || null;
@@ -804,7 +813,7 @@ function logoutUser(){
 
   async function fetchDashboardData(userId){
     try{
-      const url = `/.netlify/functions/dashboard-data?userId=${encodeURIComponent(userId)}`;
+  const url = `${API_BASE}/dashboard-data?userId=${encodeURIComponent(userId)}`;
       const r = await fetch(url);
       const json = await r.json().catch(()=>null);
       if(!r.ok){ throw new Error(`HTTP ${r.status}`); }
