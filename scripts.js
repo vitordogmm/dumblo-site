@@ -61,16 +61,7 @@ function showToast(message, type = 'error', opts = {}){
 // --- Discord OAuth (user sign-in) ---
 const DISCORD_CLIENT_ID = BOT_ID;
 const OAUTH_SCOPES = "identify email guilds";
-// Base de API parametrizável para permitir troca de host de backend
-// Defina window.__API_BASE__ em produção (ex.: "https://<seu-host>/api") para substituir o padrão.
-const API_BASE = (typeof window !== 'undefined' && (window.__API_BASE__ || localStorage.getItem('API_BASE')))
-  ? (window.__API_BASE__ || localStorage.getItem('API_BASE'))
-  : '/api';
-
-// Base de autenticação (para endpoints legado como discord-token/save-user)
-const AUTH_BASE = (typeof window !== 'undefined' && (window.__AUTH_BASE__ || localStorage.getItem('AUTH_BASE')))
-  ? (window.__AUTH_BASE__ || localStorage.getItem('AUTH_BASE'))
-  : '/api';
+// API removida — site funciona 100% estático. Não há chamadas externas.
 
 // Redirect fixo (GitHub Pages)
 const OAUTH_REDIRECT_URI = 'https://vitordogmm.github.io/dumblo-site/';
@@ -95,25 +86,8 @@ async function startDiscordLogin(){
   catch{ showToast('Não foi possível iniciar login.', 'error'); }
 }
 
-async function exchangeCodeForUser(code, state){
-  try{
-    const res = await fetch(`${AUTH_BASE}/discord-token`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ code, redirect_uri: OAUTH_REDIRECT_URI, state })
-    });
-    const data = await res.json().catch(()=>null);
-    if(!res.ok){
-      console.warn('discord-token falhou', { status: res.status, body: data });
-      const errCode = data && (data.error || data.code || data.status);
-      const errDesc = data && (data.error_description || data.message || data.detail);
-      const msg = `Discord OAuth falhou${errCode ? ` (${errCode})` : ''}${errDesc ? ` — ${errDesc}` : ''}`;
-      showToast(msg, 'error');
-      return null;
-    }
-    return data || null;
-  }catch(err){ console.warn('OAuth erro:', err); showToast('Erro de rede ao conectar ao Discord.', 'error'); return null; }
-}
+// API removida: não trocamos code por token. Mantemos fluxo leve.
+async function exchangeCodeForUser(){ return null; }
 
 function renderUserChip(user){
   const chip = document.getElementById('user-chip');
@@ -128,94 +102,40 @@ function renderUserChip(user){
     <span class="user-handle" title="${user ? (user.global_name || user.username) : 'Conectado'}">${handle}</span>
   `;
   chip.style.display = 'inline-flex';
-  // Remover o botão para garantir que não reapareça por CSS
-  try{ if(btn) btn.remove(); }catch{ if(btn) btn.style.display = 'none'; }
   // Habilita menu do usuário
   setupUserDropdown();
 }
 
-async function handleOAuthRedirect(){
-  const qs = new URLSearchParams(window.location.search);
-  const code = qs.get('code');
-  const state = qs.get('state');
-  if(!code) return;
-  // Evitar reentrância: não tente trocar o mesmo code duas vezes
-  const already = sessionStorage.getItem('oauth_code_processed');
-  if(already === code) return;
-  sessionStorage.setItem('oauth_code_processed', code);
-  const expect = sessionStorage.getItem('oauth_state');
-  // Se não houver 'state' na URL, siga adiante (fallback)
-  if(expect && state && state !== expect){
-    console.warn('State inválido; prosseguindo com fallback');
-    try{ showToast('State OAuth divergente. Prosseguindo com fallback.', 'info', { duration: 4000 }); }catch{}
-  }
-  // Em preview local, a API pode não estar disponível; seguir com fallback.
-  const data = await exchangeCodeForUser(code, state);
-  const user = data && data.user;
-  if(user){
-    try{ localStorage.setItem('discord_user', JSON.stringify(user)); }catch{}
-    try{ if(data && data.token) localStorage.setItem('discord_token', JSON.stringify(data.token)); }catch{}
-    renderUserChip(user);
-    try{ document.body.classList.add('logged-in'); }catch{}
-    // Persistência opcional no banco via função serverless
-    saveUserToDB(user).catch(err=>console.warn('Persistência de usuário falhou:', err));
-  }else{
-    // Se a troca falhar, mantenha a sessão prévia se existir
-    try{
-      const raw = localStorage.getItem('discord_user');
-      const prev = raw ? JSON.parse(raw) : null;
-      if(prev){
-        renderUserChip(prev);
-        try{ document.body.classList.add('logged-in'); }catch{}
-      }else{
-        const chip = document.getElementById('user-chip');
-        if(chip){ chip.style.display='inline-flex'; chip.innerHTML = '<span class="user-name">Falha ao conectar ao Discord</span>'; }
-        showToast('Falha ao conectar ao Discord.', 'error');
-      }
-    }catch{
-      const chip = document.getElementById('user-chip');
-      if(chip){ chip.style.display='inline-flex'; chip.innerHTML = '<span class="user-name">Falha ao conectar ao Discord</span>'; }
-      showToast('Falha ao conectar ao Discord.', 'error');
+// API removida: mantemos apenas o tratamento leve
+async function handleOAuthRedirect(){ handleOAuthRedirectLite(); }
+
+// Tratamento leve de retorno OAuth: apenas avisa e limpa a URL
+function handleOAuthRedirectLite(){
+  if(typeof window === 'undefined') return;
+  try{
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+    const code = params.get('code');
+    const error = params.get('error');
+    if(!code && !error) return;
+    if(code){
+      showToast('Autorização concluída no Discord.', 'success', { duration: 3500 });
+    } else if(error){
+      showToast(`Autorização cancelada: ${error}`, 'warn', { duration: 4000 });
     }
-  }
-  // Limpa parâmetros da URL
-  history.replaceState({}, document.title, window.location.pathname);
+    ['code','state','error','error_description'].forEach(k=>params.delete(k));
+    const clean = url.origin + url.pathname + (params.toString() ? ('?' + params.toString()) : '') + url.hash;
+    history.replaceState({}, document.title, clean);
+  }catch(e){ console.warn('OAuth lite erro:', e); }
 }
 
 function getDiscordToken(){
   try{ const raw = localStorage.getItem('discord_token'); return raw ? JSON.parse(raw) : null; }catch{ return null; }
 }
 
-async function fetchDiscordGuilds(userId){
-  const tok = getDiscordToken();
-  if(!tok || !tok.access_token) return null;
-  try{
-    const r = await fetch(`${API_BASE}/discord-guilds?userId=${encodeURIComponent(userId)}`,{
-      headers: { 'Authorization': `Bearer ${tok.access_token}` }
-    });
-    const j = await r.json().catch(()=>null);
-    if(!r.ok){ console.warn('discord-guilds falhou', r.status, j); return null; }
-    return Array.isArray(j?.guilds) ? j.guilds : null;
-  }catch(err){ console.warn('Erro discord-guilds:', err); return null; }
-}
+async function fetchDiscordGuilds(){ return null; }
 
-async function saveUserToDB(user){
-  try{
-    const resp = await fetch(`${AUTH_BASE}/save-user`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ user })
-    });
-    if(!resp.ok){
-      const txt = await resp.text();
-      console.warn('save-user retornou erro:', resp.status, txt);
-      showToast(`Falha ao salvar seu perfil (HTTP ${resp.status}).`, 'info');
-    }
-  }catch(err){
-    console.warn('Erro ao chamar save-user:', err);
-    showToast('Erro na persistência de perfil do usuário.', 'info');
-  }
-}
+async function saveUserToDB(){ /* API removida */ }
 
 function restoreDiscordUser(){
   try{
@@ -337,69 +257,257 @@ function initCommandsPage(){
   applyCommandFilters(); // garante contagem correta
 }
 
+// --- Partners (Servidores Parceiros) ---
+function setupPartners(){
+  const grid = document.getElementById('partners-grid');
+  if(!grid) return;
+  const partnersAll = (typeof window !== 'undefined' && window.__PARTNERS__) ? window.__PARTNERS__ : [];
+  const limit = (typeof window !== 'undefined' && window.__PARTNERS_LIMIT__) ? window.__PARTNERS_LIMIT__ : 12;
+  const partners = partnersAll.slice(0, Math.max(0, limit));
+  const frag = document.createDocumentFragment();
+  partners.forEach(p=>{
+    const card = document.createElement('a');
+    card.className = 'partner-card';
+    card.href = p.invite || '#';
+    card.target = p.invite && p.invite !== '#' ? '_blank' : '_self';
+    card.rel = 'noopener';
+    card.setAttribute('aria-label', `Abrir ${p.name}`);
+    const avatar = document.createElement('div');
+    avatar.className = 'partner-avatar';
+    const img = document.createElement('img');
+    img.alt = `Logo ${p.name}`;
+    img.src = p.icon || 'https://cdn.discordapp.com/embed/avatars/0.png';
+    avatar.appendChild(img);
+    const name = document.createElement('div');
+    name.className = 'partner-name';
+    name.textContent = p.name;
+    card.appendChild(avatar);
+    card.appendChild(name);
+    frag.appendChild(card);
+  });
+  grid.innerHTML = '';
+  grid.appendChild(frag);
+
+  // Tentativa opcional: buscar parceiros via Netlify Functions
+  if (partnersAll.length === 0 && typeof window !== 'undefined') {
+    const fn = '/.netlify/functions/partners';
+    fetch(fn).then(async r => {
+      if(!r.ok) return;
+      const data = await r.json();
+      const list = Array.isArray(data) ? data : (Array.isArray(data.partners) ? data.partners : []);
+      const limited = list.slice(0, Math.max(0, limit));
+      const f2 = document.createDocumentFragment();
+      limited.forEach(p=>{
+        const card = document.createElement('a');
+        card.className = 'partner-card';
+        card.href = p.invite || '#';
+        card.target = p.invite && p.invite !== '#' ? '_blank' : '_self';
+        card.rel = 'noopener';
+        card.setAttribute('aria-label', `Abrir ${p.name}`);
+        const avatar = document.createElement('div');
+        avatar.className = 'partner-avatar';
+        const img = document.createElement('img');
+        img.alt = `Logo ${p.name}`;
+        img.src = p.icon || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        avatar.appendChild(img);
+        const name = document.createElement('div');
+        name.className = 'partner-name';
+        name.textContent = p.name;
+        card.appendChild(avatar);
+        card.appendChild(name);
+        f2.appendChild(card);
+      });
+      grid.innerHTML = '';
+      grid.appendChild(f2);
+    }).catch(()=>{});
+  }
+}
+
+// --- Stats (Estatísticas) ---
+function setupStats(){
+  const grid = document.getElementById('stats-grid');
+  if(!grid) return;
+  const initial = (typeof window !== 'undefined' && window.__STATS__) ? window.__STATS__ : [
+    { value: 0, label: 'Servidores', icon: 'dns' },
+    { value: 0, label: 'Comandos', icon: 'terminal' },
+    { value: 0, prefix:'+', label: 'Usuários', icon: 'groups' },
+    { value: 0, suffix:'M', prefix:'+', label: 'Lupins', icon: 'savings' }
+  ];
+  const frag = document.createDocumentFragment();
+  initial.forEach(s=>{
+    const item = document.createElement('div');
+    item.className = 'stat-item';
+    const value = document.createElement('div');
+    value.className = 'stat-value';
+    value.textContent = '0';
+    value.setAttribute('data-target', String(s.value));
+    value.setAttribute('data-prefix', s.prefix || '');
+    value.setAttribute('data-suffix', s.suffix || '');
+    const label = document.createElement('div');
+    label.className = 'stat-label';
+    label.innerHTML = `<span class="material-symbols-rounded stat-icon" aria-hidden="true">${s.icon || 'data_usage'}</span> ${s.label}`;
+    item.appendChild(value);
+    item.appendChild(label);
+    frag.appendChild(item);
+  });
+  grid.innerHTML = '';
+  grid.appendChild(frag);
+
+  // Tentativa opcional: substituir valores pelas Netlify Functions
+  if (typeof window !== 'undefined') {
+    const fn = '/.netlify/functions/stats';
+    fetch(fn).then(async r => {
+      if(!r.ok) return;
+      const data = await r.json();
+      const mapped = [
+        { value: Number(data.servers||0), label: 'Servidores', icon: 'dns' },
+        { value: Number(data.commands||0), label: 'Comandos', icon: 'terminal' },
+        { value: Number(data.users||0), prefix:'+', label: 'Usuários', icon: 'groups' },
+        { value: Number(data.lupins||0), prefix:'+', label: 'Lupins', icon: 'savings' }
+      ];
+      const items = Array.from(grid.querySelectorAll('.stat-item'));
+      for(let i=0;i<Math.min(items.length, mapped.length); i++){
+        const valEl = items[i].querySelector('.stat-value');
+        const labelEl = items[i].querySelector('.stat-label');
+        if(valEl){
+          valEl.setAttribute('data-target', String(mapped[i].value));
+          valEl.setAttribute('data-prefix', mapped[i].prefix || '');
+          valEl.setAttribute('data-suffix', mapped[i].suffix || '');
+        }
+        if(labelEl){
+          labelEl.innerHTML = `<span class="material-symbols-rounded stat-icon" aria-hidden="true">${mapped[i].icon || 'data_usage'}</span> ${mapped[i].label}`;
+        }
+      }
+    }).catch(()=>{});
+  }
+  // Count-up quando entra em viewport
+  const io = 'IntersectionObserver' in window ? new IntersectionObserver(entries=>{
+    entries.forEach(e=>{
+      if(!e.isIntersecting) return;
+      const valEl = e.target.querySelector('.stat-value');
+      if(!valEl) return;
+      if(valEl.getAttribute('data-animated')==='1') return;
+      valEl.setAttribute('data-animated','1');
+      const target = parseFloat(valEl.getAttribute('data-target')||'0');
+      const prefix = valEl.getAttribute('data-prefix')||'';
+      const suffix = valEl.getAttribute('data-suffix')||'';
+      const duration = 1200;
+      const start = performance.now();
+      const step = (t)=>{
+        const p = Math.min(1, (t-start)/duration);
+        const eased = 1 - Math.pow(1-p, 3);
+        const cur = target * eased;
+        valEl.textContent = `${prefix}${formatCompact(cur)}${suffix}`;
+        if(p<1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+      io.unobserve(e.target);
+    });
+  },{ threshold: 0.2 }) : null;
+  const items = Array.from(grid.querySelectorAll('.stat-item'));
+  if(io){
+    items.forEach(i=>io.observe(i));
+    // fallback: se já estiver visível, inicia a animação imediatamente
+    setTimeout(()=>{
+      items.forEach(i=>{
+        const rect = i.getBoundingClientRect();
+        const visible = rect.top < window.innerHeight && rect.bottom > 0;
+        if(visible){
+          const valEl = i.querySelector('.stat-value');
+          if(valEl && valEl.getAttribute('data-animated')!=='1'){
+            valEl.setAttribute('data-animated','1');
+            const target = parseFloat(valEl.getAttribute('data-target')||'0');
+            const prefix = valEl.getAttribute('data-prefix')||'';
+            const suffix = valEl.getAttribute('data-suffix')||'';
+            const start = performance.now();
+            const duration = 1200;
+            const step = (t)=>{
+              const p = Math.min(1, (t-start)/duration);
+              const eased = 1 - Math.pow(1-p, 3);
+              const cur = target * eased;
+              valEl.textContent = `${prefix}${formatCompact(cur)}${suffix}`;
+              if(p<1) requestAnimationFrame(step);
+            };
+            requestAnimationFrame(step);
+          }
+        }
+      });
+    }, 100);
+  } else {
+    items.forEach(i=>{
+      const valEl = i.querySelector('.stat-value');
+      const target = parseFloat(valEl.getAttribute('data-target')||'0');
+      const prefix = valEl.getAttribute('data-prefix')||'';
+      const suffix = valEl.getAttribute('data-suffix')||'';
+      valEl.textContent = `${prefix}${formatCompact(target)}${suffix}`;
+    });
+  }
+}
+
+function formatCompact(n){
+  const abs = Math.abs(n);
+  if(abs >= 1_000_000) return (n/1_000_000).toFixed(1).replace(/\.0$/,'')+'M';
+  if(abs >= 1_000) return Math.round(n/1_000)+'k';
+  return Math.round(n).toString();
+}
+
+// API removida: sem carregamento remoto de estatísticas.
+
 document.addEventListener('DOMContentLoaded',()=>{
   setHref(BOT_ID);
   setupSmoothScroll();
   setupReveal();
   setupFaq();
   setupMobileNav();
-  // Botão Conectar Discord
-  const connect = document.getElementById('connect-link');
-  if(connect){
-    // Fallback direto para Discord; click usa API para iniciar login
-    try{ connect.href = buildDiscordAuthUrl(); }catch{}
-    connect.addEventListener('click',(e)=>{ e.preventDefault(); startDiscordLogin(); });
+  // Configura botão "Conectar ao Discord" com URL fixa
+  const connectEl = document.getElementById('connect-link');
+  if(connectEl){
+    connectEl.href = 'https://discord.com/oauth2/authorize?client_id=1435471760979136765&response_type=code&redirect_uri=https%3A%2F%2Fvitordogmm.github.io%2Fdumblo-site%2F&scope=email+identify+guilds';
   }
-  // Restaurar sessão e processar retorno do OAuth
+  // Restaurar sessão de usuário (apenas leitura local)
   restoreDiscordUser();
-  if(typeof window !== 'undefined') handleOAuthRedirect();
+  // Processa retorno OAuth de forma leve (sem backend)
+  handleOAuthRedirectLite();
 
   // Inicializa UI de comandos (busca + categorias)
   initCommandsPage();
-  // Inicializa a página de changelog, se presente
-  if(typeof window !== 'undefined' && typeof window.setupChangelog === 'function'){
-    try{ window.setupChangelog(); }catch(e){ console.warn('setupChangelog falhou:', e); }
-  }
-  // Inicializa Dashboard, se presente
-  if(typeof window !== 'undefined' && typeof window.setupDashboard === 'function'){
-    try{ window.setupDashboard(); }catch(e){ console.warn('setupDashboard falhou:', e); }
-  }
-});
+  // Inicializa seções novas
+  setupPartners();
+  setupStats();
+   // Inicializa a página de changelog, se presente
+   if(typeof window !== 'undefined' && typeof window.setupChangelog === 'function'){
+     try{ window.setupChangelog(); }catch(e){ console.warn('setupChangelog falhou:', e); }
+   }
+ });
 
 // Redundância: também processa o retorno OAuth no evento load, caso algo impeça DOMContentLoaded
 // Removido processamento duplicado via window.load para evitar segunda tentativa de troca do code
 
 // --- User dropdown menu (Dashboard / Logout) ---
-function ensureUserMenu(){
-  let menu = document.getElementById('user-menu');
-  if(menu) return menu;
-  menu = document.createElement('div');
-  menu.id = 'user-menu';
-  menu.className = 'user-menu hidden';
-  menu.innerHTML = `
-    <a href="#" class="user-menu-item" data-action="dashboard" aria-label="Abrir Dashboard">
-      <span class="user-menu-icon material-symbols-rounded" aria-hidden="true">dashboard</span>
-      <span>Dashboard</span>
-    </a>
-    <a href="#" class="user-menu-item" data-action="logout" aria-label="Sair da conta">
-      <span class="user-menu-icon material-symbols-rounded led-red" aria-hidden="true">logout</span>
-      <span>Logout</span>
-    </a>
-  `;
-  document.body.appendChild(menu);
-  // handlers
-  const onClick = (ev)=>{
-    ev.preventDefault();
-    const action = ev.currentTarget.getAttribute('data-action');
-    if(action === 'dashboard'){
-      window.location.href = 'dashboard.html';
-    } else if(action === 'logout'){
-      logoutUser();
-    }
-  };
-  menu.querySelectorAll('.user-menu-item').forEach(a=>a.addEventListener('click', onClick));
-  return menu;
-}
+ function ensureUserMenu(){
+   let menu = document.getElementById('user-menu');
+   if(menu) return menu;
+   menu = document.createElement('div');
+   menu.id = 'user-menu';
+   menu.className = 'user-menu hidden';
+   menu.innerHTML = `
+     <a href="#" class="user-menu-item" data-action="logout" aria-label="Sair da conta">
+       <span class="user-menu-icon material-symbols-rounded led-red" aria-hidden="true">logout</span>
+       <span>Logout</span>
+     </a>
+   `;
+   document.body.appendChild(menu);
+   // handlers
+   const onClick = (ev)=>{
+     ev.preventDefault();
+     const action = ev.currentTarget.getAttribute('data-action');
+     if(action === 'logout'){
+       logoutUser();
+     }
+   };
+   menu.querySelectorAll('.user-menu-item').forEach(a=>a.addEventListener('click', onClick));
+   return menu;
+ }
 
 function setupUserDropdown(){
   const chip = document.getElementById('user-chip');
@@ -440,13 +548,7 @@ function logoutUser(){
     if(perPage) qs.set('per_page', String(perPage));
     if(since) qs.set('since', since);
     if(until) qs.set('until', until);
-  const path = `${API_BASE}/github-commits?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}&${qs.toString()}`;
-    try{
-      const r = await fetch(path);
-      if(r.ok){ return await r.json(); }
-      console.warn('github-commits falhou, tentando API direta', r.status);
-    }catch(err){ console.warn('github-commits erro', err); }
-    // fallback: API direta (apenas para repositórios públicos)
+    // API removida: sempre usar API pública do GitHub
     try{
       const direct = `https://api.github.com/repos/${owner}/${repo}/commits?${qs.toString()}`;
       const r = await fetch(direct, { headers: { 'User-Agent':'DumbloSite/1.0' } });
@@ -717,17 +819,8 @@ function logoutUser(){
   }
 
   async function fetchGuildInfo(guildId, userId){
-    try{
-      const tok = getDiscordToken();
-      if(!tok || !tok.access_token){ return null; }
-      const qs = new URLSearchParams();
-      qs.set('guildId', guildId);
-      if(userId) qs.set('userId', userId);
-  const r = await fetch(`${API_BASE}/discord-guild-info?${qs.toString()}`, { headers: { Authorization: `Bearer ${tok.access_token}` } });
-      if(!r.ok){ return null; }
-      const j = await r.json();
-      return j && (j.guild || j.data || j) || null;
-    }catch{ return null; }
+    // API removida: sem detalhe de guildas via backend
+    return null;
   }
 
   function openGuildModal(g){
@@ -857,53 +950,20 @@ function logoutUser(){
   }
 
   async function fetchDashboardData(userId){
-    try{
-      const sel = document.getElementById('stats-timespan');
-      const timespan = sel && sel.value === '30d' ? '30d' : '7d';
-      const includeGuilds = Object.keys(getAuthHeader()).length > 0;
-      const qs = new URLSearchParams();
-      qs.set('userId', String(userId));
-      qs.set('timespan', timespan);
-      qs.set('include', `profile,stats,inventory${includeGuilds ? ',guilds' : ''}`);
-      const r = await fetch(`${API_BASE}/dashboard-data?${qs.toString()}`, { headers: { ...getAuthHeader() }, cache: 'no-store' });
-      const json = await r.json().catch(()=>null);
-      if(!r.ok){ throw new Error(`HTTP ${r.status}`); }
-      if(Array.isArray(json?.guilds)){
-        json.guilds = json.guilds.map(g=>({
-          id: g.id ?? '',
-          name: g.name ?? 'Servidor',
-          icon: g.icon ?? null,
-          memberCount: g.member_count ?? g.memberCount ?? 0,
-          joinedAt: g.joined_at ?? g.joinedAt ?? null,
-          hasBot: Boolean(g.has_bot ?? g.hasBot ?? false),
-          roles: Array.isArray(g.roles) ? g.roles.map(r=> typeof r === 'string' ? r : (r?.name ?? String(r))) : []
-        }));
-      }
-      return json;
-    }catch(err){
-      console.warn('dashboard-data erro, usando demo local', err);
-      // Fallback local: retorna dados de demonstração quando a função serverless não está disponível
-      return {
-        source: 'demo-local',
-        user: { 
-          status: 'online',
-          email: 'demo@example.com',
-          flags: 1,
-          stats: { nível: 12, força: 18, sorte: 9, agilidade: 14 },
-          stats_history: {
-            nível: [8,9,10,11,12],
-            força: [12,14,15,17,18],
-            sorte: [6,6,7,8,9],
-            agilidade: [9,10,12,13,14]
-          },
-          inventory: [ { name:'Poção de Cura', qty:3 }, { name:'Espada de Ferro', qty:1 } ]
-        },
-        guilds: [
-          { id: '123', name: 'Servidor A', hasBot: true, memberCount: 152, joinedAt: '2023-06-12', roles: ['Membro'] },
-          { id: '456', name: 'Servidor B', hasBot: false, memberCount: 48, joinedAt: '2024-02-01', roles: ['Admin','Moderator'] }
-        ]
-      };
-    }
+    // API removida: retornar dados locais ou configuração estática se existir
+    const sel = document.getElementById('stats-timespan');
+    const timespan = sel && sel.value === '30d' ? '30d' : '7d';
+    if(typeof window !== 'undefined' && window.__DASH__){ return window.__DASH__; }
+    return {
+      source: 'demo-local',
+      user: { id: String(userId||'0'), global_name: 'Aventureiro', status: 'online' },
+      stats: {
+        week: { commands: 164, users: 67000, servers: 276, lupins: 280_000_000 },
+        month: { commands: 360, users: 120000, servers: 276, lupins: 300_000_000 }
+      },
+      inventory: { coins: 1200, items: ['Poção de Cura','Espada de Ferro'] },
+      guilds: []
+    };
   }
 
   function setupDashboardSections(){
@@ -980,43 +1040,5 @@ function logoutUser(){
     apply();
   }
 
-  window.setupDashboard = async function(){
-    const root = document.getElementById('dashboard-root');
-    if(!root) return; // não está na página de dashboard
-    const user = getUser();
-    if(!user){
-      showToast('Faça login com Discord para ver seu dashboard.', 'info');
-      const link = document.getElementById('connect-link');
-      if(link){
-        try{ link.href = buildDiscordAuthUrl(); }catch{}
-        link.addEventListener('click', (e)=>{ e.preventDefault(); startDiscordLogin(); });
-      }
-      return;
-    }
-    async function load(timespan){
-      const data = await fetchDashboardData(user.id);
-      const profile = data?.profile || data?.user || {};
-      renderProfile(user, profile);
-      if(data?.stats && Array.isArray(data.stats.series)){
-        // série temporal (xp, batalhas...) por período
-        renderStatsTimeseries(data.stats);
-      }else{
-        // atributos de personagem
-        renderStatsChart(profile?.stats || {});
-        renderStatsSparkline(profile?.stats_history || {});
-      }
-      renderInventory(data?.inventory || profile?.inventory || []);
-      guildsState = Array.isArray(data?.guilds) ? data.guilds : [];
-      const dg = await fetchDiscordGuilds(user.id);
-      if(Array.isArray(dg) && dg.length){ guildsState = normalizeGuilds(dg); }
-      renderGuilds(guildsState);
-      setupGuildFilters();
-    }
-
-    setupDashboardSections();
-    setupStatsTimespan((value)=>{ load(value); });
-    const initialSel = document.getElementById('stats-timespan');
-    const initialTs = initialSel && initialSel.value ? initialSel.value : '7d';
-    await load(initialTs);
-  };
+  window.setupDashboard = function(){ /* dashboard removido */ };
 })();

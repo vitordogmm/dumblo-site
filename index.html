@@ -11,8 +11,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:wght@400;600&display=swap" rel="stylesheet">
     <link rel="icon" href="dumblo-logo.png" type="image/png" />
     <link rel="stylesheet" href="styles.css?v=20251110-2" />
-    <script>window.__API_BASE__ = 'https://dumblo.discloud.app';</script>
-    <script>window.__AUTH_BASE__ = 'https://dumblo.discloud.app';</script>
+    <!-- Dados locais do site (sem API) -->
+    <script>
+      window.__STATS__ = [
+        { value: 14, prefix: '+', label: 'Servidores', icon: 'dns' },
+        { value: 17, prefix: '+', label: 'Comandos', icon: 'terminal' },
+        { value: 1000, prefix: '+', label: 'Usuários', icon: 'groups' },
+        { value: 100000, prefix: '+', label: 'Lupins circulando', icon: 'savings' }
+      ];
+      // Opcional: defina parceiros aqui para exibir cartões
+      // window.__PARTNERS__ = [
+      //   { name: 'Servidor Parceiro', invite: 'https://discord.gg/xxxx', icon: 'https://...' },
+      // ];
+      window.__PARTNERS_LIMIT__ = 12;
+    </script>
   </head>
   <body>
     <header class="site-header">
@@ -113,6 +125,18 @@
         </div>
       </section>
 
+      <!-- Estatísticas: acima do Roadmap -->
+      <section id="stats" class="section stats">
+        <div class="container">
+          <h2 class="title-lg sr">Estatísticas</h2>
+          <div class="stats-underline"></div>
+          <div id="stats-grid" class="stats-grid sr" aria-label="Métricas do Dumblo">
+            <!-- Populado via scripts.js (setupStats) -->
+          </div>
+        </div>
+      </section>
+
+
       <section id="roadmap" class="section alt">
         <div class="container">
           <h2 class="title-lg sr">Roadmap e Atualizações</h2>
@@ -167,6 +191,15 @@
   </div>
 </section>
     </main>
+
+    <!-- Parceiros: posicionados antes do rodapé -->
+    <section id="partners" class="section partners">
+      <div class="container">
+        <h2 class="title-lg sr">Servidores Parceiros</h2>
+        <div id="partners-grid" class="partners-grid sr" aria-label="Lista de servidores parceiros"></div>
+        <p class="partners-note sr" aria-live="polite">Quer ser parceiro? Fale conosco no servidor de suporte.</p>
+      </div>
+    </section>
 
     <footer class="site-footer">
       <div class="container footer-grid">

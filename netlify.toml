@@ -1,0 +1,17 @@
+[build]
+# Site 100% estático — sem build e sem funções
+publish = "."
+command = ""
+
+[functions]
+directory = "netlify/functions"
+node_bundler = "esbuild"
+
+[[headers]]
+for = "/*"
+[headers.values]
+X-Frame-Options = "DENY"
+Referrer-Policy = "strict-origin-when-cross-origin"
+X-Content-Type-Options = "nosniff"
+Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+Content-Security-Policy = "default-src 'self' https:; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; font-src 'self' https:; script-src 'self' https: 'unsafe-inline'; connect-src 'self' https:"
