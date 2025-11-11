@@ -91,8 +91,24 @@ exports.handler = async (event) => {
 
     const base = await getGuildBase(guildId, botToken);
     const member = userId ? await getGuildMember(guildId, userId, botToken) : null;
-    const roles = await getGuildRoles(guildId, botToken);
+    const rolesAll = await getGuildRoles(guildId, botToken);
     const channels = await getGuildChannels(guildId, botToken);
+
+    // Mapear cargos do usuário (apenas os dele)
+    const roleNameById = Object.create(null);
+    rolesAll.forEach(r=>{ roleNameById[r.id] = r.name; });
+    const userRoles = Array.isArray(member?.roles) ? member.roles.map(rid=> roleNameById[rid]).filter(Boolean) : [];
+
+    // Agrupar canais por categoria
+    const catById = Object.create(null);
+    channels.filter(c=> c.type === 4).forEach(cat=>{ catById[cat.id] = { id:cat.id, name:cat.name, count:0, channels:[] }; });
+    const uncategorized = { id:'uncat', name:'Sem categoria', count:0, channels:[] };
+    channels.filter(c=> c.type !== 4).forEach(ch=>{
+      const parent = ch.parent_id && catById[ch.parent_id] ? catById[ch.parent_id] : uncategorized;
+      parent.channels.push({ id: ch.id, name: ch.name, type: ch.type });
+      parent.count++;
+    });
+    const categories = [ ...Object.values(catById), ...(uncategorized.count ? [uncategorized] : []) ];
 
     const payload = {
       id: base.id,
@@ -100,8 +116,9 @@ exports.handler = async (event) => {
       icon: base.icon,
       memberCount: base.approximate_member_count || base.member_count,
       joinedAt: member && member.joined_at ? member.joined_at : null,
-      roles,
-      channels
+      roles: userRoles,
+      channels,
+      categories
     };
     cache[guildId] = { ts: Date.now(), data: payload };
     return { statusCode: 200, headers: corsHeaders, body: JSON.stringify({ source: 'discord', guild: payload }) };
@@ -109,4 +126,3 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers: corsHeaders, body: JSON.stringify({ error: 'Erro ao obter guild info', detail: String(err) }) };
   }
 };
-

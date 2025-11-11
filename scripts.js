@@ -599,7 +599,7 @@ function logoutUser(){
     if(!card) return;
     const avatarUrl = user && user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128` : 'https://cdn.discordapp.com/embed/avatars/0.png';
     const handle = user ? (user.global_name || user.username || user.id) : '—';
-    const characterName = data?.character?.name || data?.character_name || data?.personagem || data?.nomePersonagem || null;
+    const characterName = data?.name || data?.character?.name || data?.character_name || data?.personagem || data?.nomePersonagem || null;
     const status = data?.status || '—';
     const email = data?.email || user?.email || '—';
     const flags = (data?.flags ?? user?.public_flags ?? '—');
@@ -615,8 +615,6 @@ function logoutUser(){
           <strong>${escapeHtml(handle)}</strong>
           ${characterName ? `<span class="muted">Personagem: ${escapeHtml(String(characterName))}</span>` : ''}
           <span class="status-pill">Status: ${escapeHtml(String(status))}</span>
-          <span class="muted">Email: ${escapeHtml(String(email))}</span>
-          <span class="muted">Flags: ${escapeHtml(String(flags))}</span>
         </div>
       </div>
       <div class="profile-xp">
@@ -720,7 +718,9 @@ function logoutUser(){
     const initials = String(g.name || 'Servidor').split(/\s+/).filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();
     const iconHtml = iconUrl ? `<img class="guild-icon-img" src="${escapeHtml(iconUrl)}" alt="Ícone"/>` : `<div class="guild-icon initials">${escapeHtml(initials||'?')}</div>`;
     const rolesList = Array.isArray(g.roles) ? g.roles.map(r=> (typeof r === 'string' ? r : r.name)).join(', ') : '—';
-    const channelsList = Array.isArray(g.channels) ? g.channels.map(c=> `${c.name} (${c.type})`).join(', ') : '—';
+    const categoriesList = Array.isArray(g.categories) && g.categories.length
+      ? g.categories.map(cat=> `${cat.name} (${cat.count||0})`).join(' • ')
+      : '—';
     const joined = g.joinedAt ? new Date(g.joinedAt).toLocaleDateString('pt-BR') : '—';
     card.innerHTML = `
       <div class="modal-head">
@@ -740,12 +740,12 @@ function logoutUser(){
           <div><span class="muted">Ícone</span><div>${iconHtml}</div></div>
         </div>
         <div class="modal-section">
-          <span class="muted">Cargos</span>
+          <span class="muted">Seus cargos</span>
           <div>${rolesList || '—'}</div>
         </div>
         <div class="modal-section">
-          <span class="muted">Canais</span>
-          <div>${channelsList || '—'}</div>
+          <span class="muted">Categorias de canais</span>
+          <div>${categoriesList || '—'}</div>
         </div>
       </div>
     `;
@@ -788,15 +788,18 @@ function logoutUser(){
     if(!grid) return;
     const safe = Array.isArray(items) ? items : [];
     if(!safe.length){ grid.innerHTML = `<div class="muted">Inventário vazio.</div>`; return; }
-    grid.innerHTML = safe.map(it=>`
+    grid.innerHTML = safe.map(it=>{
+      const qty = Number(it.qty ?? it.quantity ?? it.qtd ?? it.amount ?? it.count ?? 0);
+      return `
       <div class="inventory-item">
         <div class="inventory-icon">🎒</div>
         <div class="inventory-body">
           <strong>${escapeHtml(it.name || 'Item')}</strong>
-          <div class="muted">Qtd: ${escapeHtml(String(it.qty || 0))}</div>
+          <div class="muted">Qtd: ${escapeHtml(String(qty))}</div>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
   }
 
   async function fetchDashboardData(userId){

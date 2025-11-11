@@ -116,11 +116,30 @@ async function getDashboardData(userId){
     });
   }catch(e){ guilds = []; }
 
+  // Normalizar inventário em um array de itens { name, qty }
+  function normalizeItems(raw){
+    if(!raw) return [];
+    if(Array.isArray(raw)){
+      return raw.map(it=>({ name: it.name || it.nome || it.item || String(it.id||'Item'), qty: Number(it.qty ?? it.qtd ?? it.quantity ?? it.amount ?? it.count ?? 0) }));
+    }
+    if(Array.isArray(raw.items)){
+      return raw.items.map(it=>({ name: it.name || it.nome || it.item || String(it.id||'Item'), qty: Number(it.qty ?? it.qtd ?? it.quantity ?? it.amount ?? it.count ?? 0) }));
+    }
+    // Objeto mapa { nome: qtd }
+    const entries = Object.entries(raw).filter(([k,v])=> typeof v === 'number' || (v && (typeof v.qty !== 'undefined' || typeof v.quantity !== 'undefined')));
+    if(entries.length){
+      return entries.map(([k,v])=>({ name: k, qty: Number(typeof v === 'number' ? v : (v.qty ?? v.quantity ?? v.qtd ?? v.amount ?? v.count ?? 0)) }));
+    }
+    return [];
+  }
+
+  const invItems = normalizeItems(inventoryDoc) || normalizeItems(userDoc && userDoc.inventory) || [];
+
   const payload = {
     source: 'firestore',
     user: {
       ...(userDoc || {}),
-      inventory: (inventoryDoc && inventoryDoc.items) ? inventoryDoc.items : (userDoc && userDoc.inventory ? userDoc.inventory : []),
+      inventory: invItems,
       stats_history: statsHistory || null
     },
     guilds

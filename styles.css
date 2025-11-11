@@ -380,8 +380,12 @@ a{color:inherit;text-decoration:none}
 .profile-row{display:flex;align-items:center;gap:12px}
 .profile-avatar{width:64px;height:64px;border-radius:12px;border:1px solid rgba(255,255,255,.25)}
 .profile-meta{display:grid;gap:4px}
+.profile-meta strong{font-size:18px}
+.profile-xp{margin-top:8px;background:rgba(25,25,25,.6);border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:10px}
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:8px}
-.stat-pill{background:rgba(25,25,25,.6);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:8px;display:grid;gap:4px}
+.stat-pill{background:linear-gradient(180deg,rgba(255,138,0,.06),rgba(25,25,25,.6));border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:10px;display:flex;align-items:center;justify-content:space-between}
+.stat-pill span{color:#cfcfcf}
+.stat-pill strong{font-size:18px}
 .stats-chart{display:grid;gap:10px}
 /* mini sparklines for estatísticas */
 .stat-spark{display:flex;flex-direction:column;gap:6px}
@@ -391,7 +395,7 @@ a{color:inherit;text-decoration:none}
 .stat-bar-outer{height:10px;background:rgba(25,25,25,.6);border:1px solid rgba(255,255,255,.18);border-radius:999px;overflow:hidden}
 .stat-bar-inner{height:100%;background:linear-gradient(90deg,#ff7a18,#ffae3d)}
 .guilds-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
-.guild-pill{display:flex;align-items:center;gap:10px;background:rgba(25,25,25,.6);border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:10px}
+.guild-pill{display:flex;align-items:center;gap:10px;background:linear-gradient(180deg,rgba(255,138,0,.06),rgba(25,25,25,.6));border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:10px}
 .guild-icon{width:28px;height:28px;border-radius:6px;background:rgba(255,138,0,.18);border:1px solid rgba(255,138,0,.45)}
 .guild-icon.initials{display:grid;place-items:center;font-weight:800;color:#ffae3d}
 .guild-icon-img{width:28px;height:28px;border-radius:6px;border:1px solid rgba(255,255,255,.18);object-fit:cover}
