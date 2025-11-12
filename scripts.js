@@ -289,68 +289,91 @@ function initCommandsPage(){
 
 // --- Partners (Servidores Parceiros) ---
 function setupPartners(){
-  const grid = document.getElementById('partners-grid');
-  if(!grid) return;
-  const partnersAll = (typeof window !== 'undefined' && window.__PARTNERS__) ? window.__PARTNERS__ : [];
+  const ticker = document.getElementById('partners-ticker');
+  if(!ticker) return;
   const limit = (typeof window !== 'undefined' && window.__PARTNERS_LIMIT__) ? window.__PARTNERS_LIMIT__ : 12;
-  const partners = partnersAll.slice(0, Math.max(0, limit));
-  const frag = document.createDocumentFragment();
-  partners.forEach(p=>{
-    const card = document.createElement('a');
-    card.className = 'partner-card';
-    card.href = p.invite || '#';
-    card.target = p.invite && p.invite !== '#' ? '_blank' : '_self';
-    card.rel = 'noopener';
-    card.setAttribute('aria-label', `Abrir ${p.name}`);
-    const avatar = document.createElement('div');
-    avatar.className = 'partner-avatar';
-    const img = document.createElement('img');
-    img.alt = `Logo ${p.name}`;
-    img.src = p.icon || 'https://cdn.discordapp.com/embed/avatars/0.png';
-    avatar.appendChild(img);
-    const name = document.createElement('div');
-    name.className = 'partner-name';
-    name.textContent = p.name;
-    card.appendChild(avatar);
-    card.appendChild(name);
-    frag.appendChild(card);
-  });
-  grid.innerHTML = '';
-  grid.appendChild(frag);
 
-  // Tentativa opcional: buscar parceiros via Netlify Functions
-  if (partnersAll.length === 0 && typeof window !== 'undefined') {
-    const fn = '/.netlify/functions/partners';
-    fetch(fn).then(async r => {
-      if(!r.ok) return;
-      const data = await r.json();
-      const list = Array.isArray(data) ? data : (Array.isArray(data.partners) ? data.partners : []);
-      const limited = list.slice(0, Math.max(0, limit));
-      const f2 = document.createDocumentFragment();
-      limited.forEach(p=>{
-        const card = document.createElement('a');
-        card.className = 'partner-card';
-        card.href = p.invite || '#';
-        card.target = p.invite && p.invite !== '#' ? '_blank' : '_self';
-        card.rel = 'noopener';
-        card.setAttribute('aria-label', `Abrir ${p.name}`);
-        const avatar = document.createElement('div');
-        avatar.className = 'partner-avatar';
-        const img = document.createElement('img');
-        img.alt = `Logo ${p.name}`;
-        img.src = p.icon || 'https://cdn.discordapp.com/embed/avatars/0.png';
-        avatar.appendChild(img);
-        const name = document.createElement('div');
-        name.className = 'partner-name';
-        name.textContent = p.name;
-        card.appendChild(avatar);
-        card.appendChild(name);
-        f2.appendChild(card);
-      });
-      grid.innerHTML = '';
-      grid.appendChild(f2);
-    }).catch(()=>{});
+  function buildTrack(className, items){
+    const track = document.createElement('div');
+    track.className = `partners-track ${className}`;
+    items.forEach(p=>{
+      const nameVal = p.name || p.serverName || 'Servidor';
+      const iconVal = p.icon || p.serverIcon || 'https://cdn.discordapp.com/embed/avatars/0.png';
+      const item = document.createElement(p.invite ? 'a' : 'div');
+      item.className = 'partner-item';
+      if(p.invite){ item.href = p.invite; item.target = '_blank'; item.rel = 'noopener'; }
+      item.setAttribute('aria-label', nameVal);
+      const avatar = document.createElement('div');
+      avatar.className = 'partner-avatar';
+      const img = document.createElement('img');
+      img.alt = `Logo ${nameVal}`;
+      img.src = iconVal;
+      avatar.appendChild(img);
+      const name = document.createElement('div');
+      name.className = 'partner-name';
+      name.textContent = nameVal;
+      item.appendChild(avatar);
+      item.appendChild(name);
+      track.appendChild(item);
+    });
+    return track;
   }
+
+  function renderTicker(list){
+    const base = list.slice(0, Math.max(0, limit));
+    const dup = [...base, ...base];
+    const dup2 = [...base, ...base].reverse();
+    ticker.innerHTML = '';
+    const trackA = buildTrack('track-a', dup);
+    const trackB = buildTrack('track-b', dup2);
+    ticker.appendChild(trackA);
+    ticker.appendChild(trackB);
+  }
+
+  // Fonte 1: Firestore REST (patern-servers)
+  const projectId = (typeof window !== 'undefined' && window.__FIRESTORE_PROJECT_ID__) ? window.__FIRESTORE_PROJECT_ID__ : null;
+  if(projectId){
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/patern-servers`;
+    fetch(url).then(async r => {
+      if(!r.ok) throw new Error('Firestore erro');
+      const data = await r.json();
+      const docs = Array.isArray(data.documents) ? data.documents : [];
+      const list = docs.map(d => {
+        const f = d.fields || {};
+        const get = (v)=> (v && (v.stringValue || v.mapValue || v.integerValue || v.doubleValue)) || '';
+        return {
+          serverName: get(f.serverName),
+          serverIcon: get(f.serverIcon)
+        };
+      }).filter(x => x.serverName || x.serverIcon);
+      if(list.length){ renderTicker(list); return; }
+      throw new Error('Firestore vazio');
+    }).catch(()=>{
+      // Fallback 2: dados locais (window.__PARTNERS__)
+      const partnersAll = (typeof window !== 'undefined' && window.__PARTNERS__) ? window.__PARTNERS__ : [];
+      if(partnersAll.length){ renderTicker(partnersAll); return; }
+      // Fallback 3: Netlify Function
+      const fn = '/.netlify/functions/partners';
+      fetch(fn).then(async r => {
+        if(!r.ok) return;
+        const data = await r.json();
+        const list = Array.isArray(data) ? data : (Array.isArray(data.partners) ? data.partners : []);
+        renderTicker(list);
+      }).catch(()=>{});
+    });
+    return;
+  }
+
+  // Sem Firestore: usa local ou Netlify Function
+  const partnersAll = (typeof window !== 'undefined' && window.__PARTNERS__) ? window.__PARTNERS__ : [];
+  if(partnersAll.length){ renderTicker(partnersAll); return; }
+  const fn = '/.netlify/functions/partners';
+  fetch(fn).then(async r => {
+    if(!r.ok) return;
+    const data = await r.json();
+    const list = Array.isArray(data) ? data : (Array.isArray(data.partners) ? data.partners : []);
+    renderTicker(list);
+  }).catch(()=>{});
 }
 
 // --- Stats (Estatísticas) ---
