@@ -321,13 +321,19 @@ function setupPartners(){
 
   function renderTicker(list){
     const base = list.slice(0, Math.max(0, limit));
-    const dup = [...base, ...base];
-    const dup2 = [...base, ...base].reverse();
+    const loop = [...base, ...base];
+    const loop2 = [...base, ...base].reverse();
     ticker.innerHTML = '';
-    const trackA = buildTrack('track-a', dup);
-    const trackB = buildTrack('track-b', dup2);
-    ticker.appendChild(trackA);
-    ticker.appendChild(trackB);
+    const rowA = document.createElement('div');
+    rowA.className = 'partners-row';
+    const rowB = document.createElement('div');
+    rowB.className = 'partners-row';
+    const trackA = buildTrack('track-a', loop);
+    const trackB = buildTrack('track-b', loop2);
+    rowA.appendChild(trackA);
+    rowB.appendChild(trackB);
+    ticker.appendChild(rowA);
+    ticker.appendChild(rowB);
   }
 
   // Fonte 1: Firestore REST (patern-servers)
