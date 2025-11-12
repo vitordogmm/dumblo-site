@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dumblo — Documentação</title>
+    <meta name="description" content="Documentação do Dumblo: introdução, passos iniciais, comandos e sistemas." />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="icon" href="dumblo-logo.png" type="image/png" />
+    <link rel="stylesheet" href="styles.css?v=20251110-2" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container nav">
+        <a class="brand" href="./" aria-label="Dumblo — página inicial">
+          <img src="dumblo-logo.png" alt="Logo do Dumblo" class="brand-logo-img" width="32" height="32" />
+          <span class="brand-name">Dumblo</span>
+        </a>
+        <nav class="menu" aria-label="Principal">
+          <a href="index.html#hero" class="menu-link">Início</a>
+          <a href="comandos.html" class="menu-link">Comandos</a>
+          <a href="changelog.html" class="menu-link">Changelog</a>
+          <a href="termos.html" class="menu-link">Termos</a>
+          <a href="doc.html" class="menu-link active">Doc</a>
+        </nav>
+        <div class="actions">
+          <a id="support-link" class="btn btn-secondary" target="_blank" rel="noopener">Suporte</a>
+          <a id="connect-link" class="btn btn-outline" aria-label="Conectar ao Discord" href="#" rel="noopener">
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block"><path d="M20.317 4.369A19.791 19.791 0 0 0 16.558 3c-.2.364-.438.85-.602 1.236a18.51 18.51 0 0 0-3.954 0A8.258 8.258 0 0 0 11.4 3c-.211.385-.45.872-.602 1.236-1.406.258-2.77.704-4.116 1.333-.147.107-.28.214-.41.321-2.61 3.78-3.32 7.46-2.964 11.079a19.991 19.991 0 0 0 5.07 2.601c.406-.558.77-1.154 1.08-1.789-.595-.224-1.163-.49-1.704-.797.142-.103.28-.21.41-.321 3.218 1.505 6.696 1.505 9.882 0 .136.111.274.218.41.321-.54.307-1.106.573-1.704.797.31.635.674 1.231 1.084 1.789a19.94 19.94 0 0 0 5.066-2.601c.413-4.299-.733-7.949-2.957-11.079a15.36 15.36 0 0 0-.414-.321ZM9.471 13.61c-.955 0-1.733-.87-1.733-1.94s.766-1.947 1.733-1.947c.967 0 1.748.878 1.733 1.947 0 1.07-.766 1.94-1.733 1.94Zm5.066 0c-.955 0-1.733-.87-1.733-1.94s.766-1.947 1.733-1.947c.967 0 1.748.878 1.733 1.947 0 1.07-.766 1.94-1.733 1.94Z"/></svg>
+            <span>Conectar ao Discord</span>
+          </a>
+          <div id="user-chip" class="user-chip" style="display:none"></div>
+          <button class="hamburger" aria-label="Abrir menu"><span></span><span></span><span></span></button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="section">
+        <div class="container">
+          <div class="page-head sr">
+            <h1 class="title-lg">Documentação do Dumblo</h1>
+            <p class="lead">Guia completo para começar, entender os sistemas e dominar suas aventuras.</p>
+          </div>
+
+          <div class="doc-layout">
+            <aside class="doc-sidebar sr" aria-label="Navegação da documentação">
+              <div class="doc-search">
+                <input type="text" placeholder="Pesquisar na documentação..." aria-label="Pesquisar" />
+              </div>
+              <nav class="doc-nav">
+                <a href="#intro" class="doc-link">Introdução</a>
+                <a href="#passo" class="doc-link">Passo a Passo</a>
+                <a href="#rotina" class="doc-link">Rotina Recomendada</a>
+                <a href="#comandos" class="doc-link">Comandos por Situação</a>
+                <a href="#sistemas" class="doc-link">Sistemas</a>
+                <a href="#dicas" class="doc-link">Dicas</a>
+                <a href="#regras" class="doc-link">Regras e Limites</a>
+              </nav>
+            </aside>
+            <article class="api-doc sr">
+            <section id="intro" class="doc-section">
+              <h2>Introdução</h2>
+              <p>Dumblo é um bot de RPG no Discord com classes, atributos, itens, economia e aventuras. Tudo gira em torno de três pilares: status (seu poder), equipamentos (seus bônus) e decisões durante as aventuras (combate, baús e NPCs). Muitas respostas são privadas (<em>ephemeral</em>): você vê, o canal fica limpo.</p>
+            </section>
+
+            <section id="passo" class="doc-section">
+              <h2>Passo a Passo Inicial</h2>
+              <ul>
+                <li>Crie seu personagem: <code>\start</code>.</li>
+                <li>Veja seu perfil: <code>\profile</code>. Quando tiver dúvidas, volte aqui para conferir atributos, nível e XP.</li>
+                <li>Recolha seu daily: <code>\daily</code> dá lupins com base na sua sorte (cooldown de 24h).</li>
+                <li>Equipe seus itens: <code>\inventario</code> equipa arma, armadura e um consumível (slot 1).</li>
+                <li>Inspecione seus itens: <code>\item</code> mostra detalhes via select menu; ao escolher um item, aparece a ficha dele com o botão Voltar.</li>
+                <li>Distribua pontos: <code>\status</code> usa um modal simples para alocar seus pontos de status.</li>
+                <li>Aventure-se: <code>\aventura</code> abre um encontro aleatório e começa sua progressão real.</li>
+              </ul>
+            </section>
+
+            <section id="rotina" class="doc-section">
+              <h2>Rotina Recomendada</h2>
+              <ul>
+                <li>Todo dia: <code>\daily</code> → <code>\aventura</code> 2–3 vezes → revisar <code>\inventario</code>.</li>
+                <li>Ao upar: <code>\status</code> (distribua os pontos pensando na sua classe).</li>
+                <li>Precisa de grana: mais aventuras e abrir baús; veja <code>\historico</code> para entender suas transações.</li>
+                <li>Com pouca vida: equipe uma poção em <code>\inventario</code> e use no combate (botão “Usar consumível”).</li>
+              </ul>
+            </section>
+
+            <section id="comandos" class="doc-section">
+              <h2>Comandos por Situação</h2>
+              <h3>Perfil e Progresso</h3>
+              <ul>
+                <li><code>\profile</code> — ficha completa (classe, XP, nível).</li>
+                <li><code>\perfil</code> — mostra só o que está equipado.</li>
+                <li><code>\status</code> — alocar pontos (modal com Força, Int., Agilidade, Vitalidade, Sorte).</li>
+              </ul>
+              <h3>Itens</h3>
+              <ul>
+                <li><code>\inventario</code> — gerencia equipamentos e consumível; tem botões de desequipar e atualizar.</li>
+                <li><code>\item</code> — inspeciona qualquer item do inventário com detalhes.</li>
+              </ul>
+              <h3>Aventuras</h3>
+              <ul>
+                <li><code>\aventura</code> — encontros aleatórios: combate, baú, NPC, evento especial ou descanso.</li>
+              </ul>
+              <h3>Economia</h3>
+              <ul>
+                <li><code>\carteira</code> — vê carteira e banco.</li>
+                <li><code>\depositar</code>/<code>\sacar</code> — move lupins entre carteira e banco (com confirmação).</li>
+                <li><code>\transferir</code> — envia lupins para outro usuário (com confirmação).</li>
+                <li><code>\historico</code> — extrato de transações.</li>
+                <li><code>\daily</code> — coleta diária de lupins.</li>
+              </ul>
+              <h3>Ajuda e Utilidades</h3>
+              <ul>
+                <li><code>\help</code> — links do site, termos e suporte.</li>
+                <li><code>\botinfo</code> — informações do bot, convite e links.</li>
+                <li><code>\ping</code> — latências e status.</li>
+              </ul>
+            </section>
+
+            <section id="sistemas" class="doc-section">
+              <h2>Sistemas — Como Funcionam</h2>
+              <h3>Combate (via <code>\aventura</code>)</h3>
+              <ul>
+                <li>Turnos e botões: “Atacar”, “Defender”, “Fugir” e “Usar consumível”.</li>
+              </ul>
+              <h4>Dano do jogador</h4>
+              <ul>
+                <li>Arma define base: físico ou mágico.</li>
+                <li>Escala principal: Força (arma física) ou Inteligência (arma mágica).</li>
+                <li>Sorte aumenta chance de crítico. Defender concede bônus de crítico para o próximo ataque.</li>
+              </ul>
+              <h4>Dano do inimigo</h4>
+              <ul>
+                <li>Usa o <code>attack</code> dele contra sua <code>defense</code> (armadura).</li>
+                <li>“Defender” reduz dano pela metade no turno.</li>
+              </ul>
+              <h4>Vitória</h4>
+              <ul>
+                <li>Ganho de XP e Lupins de acordo com as recompensas do inimigo.</li>
+                <li>Level up: quando XP ≥ <code>(nível+1) * 1000</code>; ao subir nível, você ganha <strong>+5</strong> pontos de status.</li>
+              </ul>
+              <h4>Sessão</h4>
+              <ul>
+                <li>Uma aventura por vez. Se já houver sessão ativa, o bot reconstrói a interface para você retomar.</li>
+                <li>Sessões expiram após cerca de 15 minutos sem ação.</li>
+              </ul>
+              <h3>Consumíveis</h3>
+              <ul>
+                <li>Equipe um consumível no <code>\inventario</code>.</li>
+                <li>No combate, use o botão “Usar consumível”; o inimigo irá atacar após você usar.</li>
+              </ul>
+              <h3>Aventuras (tipos de encontro)</h3>
+              <ul>
+                <li><strong>Combate</strong>: principal fonte de XP; use seus status e equipamentos com inteligência.</li>
+                <li><strong>Baú</strong>: pode vir com armadilha (perde HP), itens e/ou lupins; se o inventário estiver cheio, alguns itens viram lupins automaticamente.</li>
+                <li><strong>NPC</strong>: concede XP e, às vezes, lupins.</li>
+                <li><strong>Especial</strong>: santuário (cura) ou armadilha (dano).</li>
+                <li><strong>Descanso</strong>: recupera HP com base na Vitalidade.</li>
+              </ul>
+              <h3>Status e Classes</h3>
+              <h4>Atributos</h4>
+              <ul>
+                <li><strong>Força</strong>: aumenta dano físico (armas sem dano mágico).</li>
+                <li><strong>Inteligência</strong>: aumenta dano mágico (armas com dano mágico).</li>
+                <li><strong>Agilidade</strong>: influencia chance de fuga e ritmo em alguns cálculos.</li>
+                <li><strong>Vitalidade</strong>: aumenta HP máximo e eficácia de curas.</li>
+                <li><strong>Sorte</strong>: eleva chance de crítico e melhora a economia/loot de forma leve.</li>
+                <li><strong>Carisma</strong>: exibido, mas não é ajustável por você (futuro uso).</li>
+              </ul>
+              <h4>Classes (exemplos de passivas)</h4>
+              <ul>
+                <li>Guerreiro: +10% defesa.</li>
+                <li>Mago: +15% dano mágico.</li>
+                <li>Arqueiro: melhora chance de crítico.</li>
+                <li>Ladino: mais chance de itens raros em baús.</li>
+                <li>Paladino: benção que regenera HP no primeiro ataque.</li>
+              </ul>
+              <h4>Distribuição</h4>
+              <p>Use <code>\status</code> e aloque seus pontos sem exceder os disponíveis. É simples e seguro.</p>
+              <p><strong>Dicas</strong>: Guerreiro foca Força/Vitalidade; Mago foca Inteligência/Sorte; Arqueiro foca Agilidade/Sorte; Ladino foca Sorte/Agilidade.</p>
+              <h3>Inventário e Itens</h3>
+              <ul>
+                <li><strong>Capacidade</strong>: começa com limite padrão (ex.: 20). Se seu inventário lotar, alguns itens de baús podem virar lupins.</li>
+                <li><strong>Equipamentos</strong>: uma arma, uma armadura e um consumível em slot 1.</li>
+                <li><strong>Empilháveis</strong>: consumíveis e materiais empilham; armas/armaduras não.</li>
+                <li><strong>Inspeção</strong>: <code>\item</code> mostra ficha com tipo, raridade, nível, stats, requisitos, efeitos e quantidade.</li>
+              </ul>
+              <h3>Economia de Lupins</h3>
+              <ul>
+                <li><strong>Carteira/Banco</strong>: guarde com segurança. Transferências entre usuários exigem confirmação.</li>
+                <li><strong>Histórico</strong>: <code>\historico</code> lista operações recentes.</li>
+                <li><strong>Daily</strong>: <code>\daily</code> entrega lupins baseados na sorte; aguarde o cooldown.</li>
+                <li><strong>Beta testers</strong>: +3 de sorte efetiva e +10% em daily, baús e recompensas da aventura.</li>
+              </ul>
+            </section>
+
+            <section id="dicas" class="doc-section">
+              <h2>Dicas Práticas</h2>
+              <ul>
+                <li>Sempre equipe algo: até uma arma simples aumenta bastante seu dano.</li>
+                <li>Defenda se estiver perto de cair: reduz dano e prepara crítico para o próximo turno.</li>
+                <li>Consumíveis importam: equipe poções e use no combate; manutenção de HP salva progressos.</li>
+                <li>Faça baús e NPCs: estabilizam seu crescimento e economia.</li>
+                <li>Foque atributos de acordo com sua arma: dano mágico pede Inteligência; físico pede Força.</li>
+              </ul>
+            </section>
+
+            <section id="regras" class="doc-section">
+              <h2>Regras e Limites</h2>
+              <ul>
+                <li>Cooldown curto em quase todos os comandos (~3s) para evitar spam.</li>
+                <li>Várias respostas são privadas (<em>ephemeral</em>) — o canal não fica poluído.</li>
+                <li>Apenas o dono da visão pode interagir com menus e botões das suas mensagens.</li>
+                <li>Uma sessão de <code>\aventura</code> ativa por vez, com expiração em ~15 minutos.</li>
+              </ul>
+            </section>
+            </article>
+          </div>
+
+          <div class="cmd-cta sr" style="margin-top:22px">
+            <a id="invite-link-commands" class="btn btn-primary btn-lg">Adicionar ao Discord</a>
+            <a id="support-link-commands" class="btn btn-outline btn-lg" target="_blank" rel="noopener">Servidor de Suporte</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footnote">
+        <span>© 2025 Dumblo. Todos os direitos reservados.</span>
+        <span>Feito com <span class="heart-led" aria-hidden="true">❤</span> e laranja.</span>
+      </div>
+    </footer>
+    <div id="toast" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+    <script src="scripts.js?v=20251111" defer></script>
+  </body>
+</html>

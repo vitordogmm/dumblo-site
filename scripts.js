@@ -555,8 +555,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   setupReveal();
   setupFaq();
   setupMobileNav();
-  // Fundo animado global (estrelinhas/linhas leves)
-  try{ initAnimatedBackground(); }catch(e){ console.warn('Animated background init falhou:', e); }
+  
   // Configura botão "Conectar ao Discord" com URL fixa
   const connectEl = document.getElementById('connect-link');
   if(connectEl){
@@ -578,6 +577,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Inicializa seções novas
   setupPartners();
   setupStats();
+  setupDocSearch();
    // Inicializa a página de changelog, se presente
    if(typeof window !== 'undefined' && typeof window.setupChangelog === 'function'){
      try{ window.setupChangelog(); }catch(e){ console.warn('setupChangelog falhou:', e); }
@@ -864,6 +864,40 @@ function logoutUser(){
     reload();
   };
 })();
+
+// --- Documentation search ---
+function setupDocSearch(){
+  const input = document.querySelector('.doc-search input');
+  const links = Array.from(document.querySelectorAll('.doc-nav .doc-link'));
+  if(!input || !links.length) return;
+  const index = links.map(link=>{
+    const href = link.getAttribute('href') || '';
+    const sec = href.startsWith('#') ? document.querySelector(href) : null;
+    const text = `${(link.textContent||'').toLowerCase()} ${String(sec?.textContent||'').toLowerCase()}`;
+    return { link, href, text };
+  });
+  const apply = ()=>{
+    const q = (input.value||'').trim().toLowerCase();
+    let first = null;
+    index.forEach(it=>{
+      const match = !q || it.text.includes(q);
+      it.link.style.display = match ? 'block' : 'none';
+      if(match && !first) first = it;
+    });
+    if(q && first && first.href){
+      const target = document.querySelector(first.href);
+      if(target){
+        const top = target.getBoundingClientRect().top + window.scrollY - 70;
+        window.scrollTo({ top, behavior:'smooth' });
+      }
+    }
+  };
+  input.addEventListener('input', apply);
+  input.addEventListener('keydown', ev=>{
+    if(ev.key === 'Enter') apply();
+  });
+  apply();
+}
 
 // --- Dashboard page ---
 (function(){
