@@ -572,40 +572,4 @@ body.doc-page::before, body.doc-page::after{content:none}
   .dash-nav-link{flex:1;margin-bottom:0}
   .dash-card{grid-column:span 12}
 }
-/* Global animated background (orange tones + subtle black) */
-body::before{content:"";position:fixed;inset:-10%;z-index:-1;pointer-events:none;
-  background-image:
-    radial-gradient(circle at center, rgba(255,122,26,0.14), transparent 60%),
-    radial-gradient(circle at center, rgba(255,154,61,0.10), transparent 60%),
-    radial-gradient(circle at center, rgba(255,106,0,0.08), transparent 60%);
-  background-size:140% 140%, 170% 170%, 200% 200%;
-  background-position:20% 8%, 82% 18%, 50% 82%;
-  filter:blur(44px);
-}
-body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
-  background:
-    linear-gradient(180deg, rgba(0,0,0,0.68), rgba(0,0,0,0.55)),
-    radial-gradient(70% 40% at 65% 12%, rgba(0,0,0,0.35), transparent 66%),
-    repeating-linear-gradient(0deg, rgba(255,122,26,0.05) 0px, rgba(255,122,26,0.05) 1px, transparent 9px),
-    repeating-linear-gradient(90deg, rgba(255,122,26,0.03) 0px, rgba(255,122,26,0.03) 1px, transparent 11px);
-  background-size:auto, auto, 200% 200%, 180% 180%;
-  background-position:center, center, 0 0, 0 0;
-  opacity:.96;
-}
-@keyframes orangeBgMove{
-  0%{background-position:18% 8%, 82% 18%, 50% 82%;opacity:.86}
-  50%{background-position:32% 20%, 68% 26%, 42% 76%;opacity:1}
-  100%{background-position:18% 8%, 82% 18%, 50% 82%;opacity:.86}
-}
-@keyframes orangeBgPulse{0%{opacity:.80}50%{opacity:.92}100%{opacity:.80}}
-@keyframes orangeBgDrift{
-  0%{transform:translate3d(-3%, -2%, 0) scale(1.02)}
-  50%{transform:translate3d(3%, 2%, 0) scale(1.05)}
-  100%{transform:translate3d(-3%, -2%, 0) scale(1.02)}
-}
-@keyframes orangeLinesMove{
-  0%{background-position:center, center, 0 0, 0 0}
-  50%{background-position:center, center, 120px 0, 0 80px}
-  100%{background-position:center, center, 0 0, 0 0}
-}
-@media (prefers-reduced-motion: reduce){body::before,body::after{animation:none}}
+/* Removed duplicate global background block to avoid stacking blur layers */
